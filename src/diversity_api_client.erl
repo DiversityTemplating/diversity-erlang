@@ -1,6 +1,6 @@
 -module(diversity_api_client).
 
--export([get_diversity_json/2, get_component_settings/2, get_file/3]).
+-export([get_diversity_json/2, get_component_settings_schema/2, get_file/3]).
 
 %% @doc Fetches the diversity json for a specific Component and Tag
 -spec get_diversity_json(binary(), binary()) -> map().
@@ -9,8 +9,8 @@ get_diversity_json(Component, Tag) ->
     DiversityJson.
 
 %% @doc Fetches settings for specific Component and Tag
--spec get_component_settings(binary(), binary()) -> map().
-get_component_settings(Component, Tag) ->
+-spec get_component_settings_schema(binary(), binary()) -> map().
+get_component_settings_schema(Component, Tag) ->
     {_, Settings} = get_diversity_json_and_settings(Component, Tag),
     Settings.
 

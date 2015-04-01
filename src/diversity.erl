@@ -17,13 +17,13 @@ render(#{<<"component">> := Component} = Params, Context) ->
     Version = maps:get(<<"version">>, Params, <<"*">>),
 
     %% Get the diversity.json for the main component
-    {ok, _Diversity} = diversity_util:get_diversity_json(Component, Version),
+    _Diversity = diversity_api_client:get_diversity_json(Component, Version),
 
     %% Get the settings from the supplied parameters
     Settings = maps:get(<<"settings">>, Params, #{}),
 
     %% Get the settings schema
-    {ok, Schema} = diversity_util:get_settings_schema(Component, Version),
+    Schema = diversity_api_client:get_component_settings_schema(Component, Version),
 
     %% Retrive all components that need to be loaded
     Fun = fun (SubComponent, Components) ->
@@ -31,7 +31,7 @@ render(#{<<"component">> := Component} = Params, Context) ->
                   Entry1 = maps:merge(#{<<"version">> => <<"*">>}, Entry0),
                   [Entry1 | Components]
           end,
-    Components0 = lists:reverse(diversity_util:fold(Settings, Schema, Fun, [])),
+    Components0 = lists:reverse(fold(Settings, Schema, Fun, [])),
 
     %% Make sure all components are available
     State = load_components(Components0, Context),
@@ -48,7 +48,7 @@ render_component(#{<<"component">> := Name} = Component0, #{<<"type">> := <<"obj
     #{<<"version">> := Version} = maps:get(Name, State#state.components),
 
     %% Get the settings schema
-    {ok, Schema} = diversity_util:get_settings_schema(Name, Version),
+    Schema = diversity_api_client:get_component_settings_schema(Name, Version),
 
     %% Render the children first
     Settings0 = maps:get(<<"settings">>, Component0, #{}),
@@ -96,7 +96,7 @@ load_component(Component, Version, State0) ->
     Language = maps:get(language, Context, <<"en">>),
 
     %% Retrive diversity.json
-    {ok, Diversity} = diversity_util:get_diversity_json(Component, Version),
+    Diversity = diversity_api_client:get_diversity_json(Component, Version),
 
     %% Add it the components fetched so far
     Components1 = maps:put(Component, Diversity, Components0),
@@ -104,7 +104,7 @@ load_component(Component, Version, State0) ->
     %% Retrive the template if it exist
     Templates1 = case maps:find(<<"template">>, Diversity) of
                    {ok, TemplatePath} ->
-                         {ok, Template} = diversity_util:get_file(Component, Version, TemplatePath),
+                         Template = diversity_api_client:get_file(Component, Version, TemplatePath),
                          maps:put(Component, Template, Templates0);
                    error ->
                          Templates0
@@ -113,9 +113,10 @@ load_component(Component, Version, State0) ->
     %% Retrive the translations if they exist
     Translations1 = case maps:find(Language, maps:get(<<"i18n">>, Diversity, #{})) of
                         {ok, #{<<"view">> := TranslationPath}} ->
-                            case diversity_util:get_file(Component, Version, TranslationPath) of
-                                {ok, Translation} -> maps:put(Component, Translation, Translations0);
-                                error             -> Translations0
+                            try diversity_api_client:get_file(Component, Version, TranslationPath) of
+                                Translation -> maps:put(Component, Translation, Translations0)
+                            catch
+                                error:case_clause -> Translations0
                             end;
                         _NotFound ->
                             Translations0
@@ -138,3 +139,28 @@ load_dependency(Dependency, Constraint, State) ->
 
 satisfied(_Version, _Constraint) ->
     true.
+
+fold(#{<<"component">> := Name, <<"settings">> := Settings} = Component,
+     #{<<"type">> := <<"object">>, <<"format">> := <<"diversity">>},
+     Fun, Acc0) ->
+    Version = maps:get(<<"version">>, Component, <<"*">>),
+    Acc1 = Fun(Component, Acc0),
+    Schema = diversity_api_client:get_component_settings_schema(Name, Version),
+    fold(Settings, Schema, Fun, Acc1);
+fold(Settings, #{<<"type">> := <<"object">>, <<"properties">> := Properties}, Fun, Acc0) when is_map(Settings) ->
+    maps:fold(
+      fun (Property, Value, Acc) ->
+              case maps:find(Property, Properties) of
+                  {ok, PropertySchema} -> fold(Value, PropertySchema, Fun, Acc);
+
+                  _            -> Acc
+              end
+      end,
+      Acc0,
+      Settings
+     );
+fold(Settings, #{<<"type">> := <<"array">>, <<"items">> := Schema}, Fun, Acc0) when is_list(Settings) ->
+    lists:foldl(fun (Item, Acc) -> fold(Item, Schema, Fun, Acc) end, Acc0, Settings);
+fold(_Settings, _Schema, _Fun, Acc) ->
+    Acc.
+
