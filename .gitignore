@@ -3,3 +3,7 @@ _rel/
 .idea
 *.iml
 logs/
+deps/
+*.beam
+relx
+.erlang.mk*

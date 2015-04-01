@@ -2,10 +2,20 @@
 
 -include_lib("eunit/include/eunit.hrl").
 
+render_test_() ->
+    {setup,
+     fun start/0,
+     fun stop/1,
+     fun render_page/0}.
+
 start() ->
     application:ensure_all_started(diversity).
 
-render_test() ->
+stop(_Pid) ->
+    application:stop(diversity).
+
+
+render_page() ->
     start(),
     Context = #{language => <<"en">>,
                 webshop => 32208,
@@ -14,6 +24,6 @@ render_test() ->
                 swsUrl => <<"https://api.diversity.io/components">>},
     {ok, ParamsJSON} = file:read_file("test/params.json"),
     Params = jiffy:decode(ParamsJSON, [return_maps]),
-    Result = diversity:render(Params, Context),
-    ?debugFmt("~nResult: ~p~n", [Result]),
+    _Result = diversity:render(Params, Context),
+    % ?debugFmt("~nResult: ~p~n", [Result]),
     ?assert(false).

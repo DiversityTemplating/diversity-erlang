@@ -43,7 +43,7 @@ render(#{<<"component">> := Component} = Params, Context) ->
 render_component(#{<<"component">> := Name} = Component0, #{<<"type">> := <<"object">>, <<"format">> := <<"diversity">>},
                  #state{context = Context0, templates = Templates} = State) ->
 
-    ?debugFmt("~nRendering component: ~p~n", [Name]),
+    % ?debugFmt("~nRendering component: ~p~n", [Name]),
     %% Get resolved version from the state
     #{<<"version">> := Version} = maps:get(Name, State#state.components),
 
@@ -64,13 +64,13 @@ render_component(#{<<"component">> := Name} = Component0, #{<<"type">> := <<"obj
             Component1
     end;
 render_component(Map, #{<<"type">> := <<"object">>, <<"properties">> := Properties}, State) when is_map(Map) ->
-    ?debugFmt("~nMap: ~p~n", [Map]),
+    % ?debugFmt("~nMap: ~p~n", [Map]),
     maps:map(fun (Property, Value) -> render_component(Value, maps:get(Property, Properties, #{}), State) end, Map);
 render_component(List, #{<<"type">> := <<"array">>, <<"items">> := Schema}, State) when is_list(List), is_map(Schema) ->
-    ?debugFmt("~nList: ~p~n", [List]),
+    % ?debugFmt("~nList: ~p~n", [List]),
     lists:map(fun (Item) -> render_component(Item, Schema, State) end, List);
 render_component(Term, _Schema, _State) ->
-    ?debugFmt("~nLeaf: ~p~n", [Term]),
+    % ?debugFmt("~nLeaf: ~p~n", [Term]),
     Term.
 
 render_mustache(Template, _Context) ->
