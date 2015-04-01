@@ -50,7 +50,7 @@ handle_diversity_request(Req) ->
     WebshopUid = proplists:get_value(webshop_uid, UrlPropList),
     {Headers, _} = cowboy_req:headers(Req3),
     Headers1 = header_key_value_to_list(Headers, []),
-    ThemeSettingsParams = case ThemeId of
+    Theme = case ThemeId of
         undefined ->
             %% If we have no theme_id on do theme select
             %% Now if we still have no theme id we should return failure
@@ -73,11 +73,9 @@ handle_diversity_request(Req) ->
                    webshop    => WebshopUid,
                    language   => proplists:get_value(language, UrlPropList),
                    apiUrl     => APIUrl},
-    ThemeSettingsParams, ContextMap,
     try
         %% All good? Send to renderer and let the magic happen in a nice try block.
-        % Output = diversity:render(ThemeSettingsParams, ContextMap),
-        Output = <<"Foobar">>,
+        Output = diversity:render(maps:get(<<"params">>, Theme), ContextMap),
         {ok, _} = cowboy_req:reply(
             200, [{<<"content-type">>, <<"text/html">>}], Output, Req3
         )

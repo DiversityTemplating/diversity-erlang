@@ -55,15 +55,20 @@ call_diversity_api(Component, Tag, Action) ->
     Path = build_path(Component, Tag, Action),
     Request = {lists:flatten([binary_to_list(Url) | Path]), []},
     case httpc:request(get, Request, [], Opts) of
-        {ok, {{_Version, _Status, _ReasonPhrase}, _Headers, Body}} ->
-            case Action of
-                {file, _} ->
-                    Body;
-                tags ->
-                    jiffy:decode(Body);
-                _ ->
-                    %% Settings and diversity json
-                    jiffy:decode(Body, [return_maps])
+        {ok, {{_Version, Status, _ReasonPhrase}, _Headers, Body}} ->
+            case Status of
+                404 -> throw(file_missing);
+                500 -> throw(server_error);
+                _   ->
+                    case Action of
+                        {file, _} ->
+                            Body;
+                        tags ->
+                            jiffy:decode(Body);
+                        _ ->
+                            %% Settings and diversity json
+                            jiffy:decode(Body, [return_maps])
+                    end
             end
     end.
 
