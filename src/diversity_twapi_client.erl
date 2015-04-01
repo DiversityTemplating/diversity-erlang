@@ -87,7 +87,7 @@ post_to_twapi(MethodAndParamsPair, ContextQs, Headers) ->
             Opts = [{body_format, binary}],
             Url1 = case ContextQs of
                 <<>> -> Url;
-                _    -> <<Url/binary, "?", ContextQs/binary>>
+                _    -> <<Url/binary, "/?", ContextQs/binary>>
             end,
             Request = {binary_to_list(Url1), Headers, "application/json", PostData},
             case httpc:request(post, Request, [], Opts) of

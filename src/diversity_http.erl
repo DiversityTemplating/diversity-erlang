@@ -67,14 +67,12 @@ handle_diversity_request(Req) ->
             end
     end,
 
-    APIUrl = <<"https://shop.textalk.se/backend/jsonrpc/v1">>,
-    SWSUrl = <<"https://api.diversity.io">>,
+    {ok, APIUrl} = application:get_env(diversity, twapi_url),
 
     ContextMap = #{webshopUrl => proplists:get_value(webshop_url, UrlPropList),
                    webshop    => WebshopUid,
                    language   => proplists:get_value(language, UrlPropList),
-                   apiUrl     => APIUrl,
-                   swsUrl     => SWSUrl},
+                   apiUrl     => APIUrl},
     ThemeSettingsParams, ContextMap,
     try
         %% All good? Send to renderer and let the magic happen in a nice try block.

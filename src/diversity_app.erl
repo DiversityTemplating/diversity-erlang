@@ -5,7 +5,6 @@
 -export([stop/1]).
 
 start(_Type, _Args) ->
-    inets:start(),
     Routes = [
       {"/favicon.ico", diversity_resource_handler, [favicon]},
       {"/sitemap.xml", diversity_resource_handler, [sitemap]},

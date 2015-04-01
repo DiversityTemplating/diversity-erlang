@@ -13,5 +13,7 @@
         cowboy
     ]},
     {mod, {diversity_app, []}},
-    {env, []}
+    {env, [{diversity_api_url, <<"http://api.diversity.io">>},
+           {twapi_url, <<"http://shop.textalk.se/backend/jsonrpc/v1">>},
+           {port, 8080}]}
 ]}.

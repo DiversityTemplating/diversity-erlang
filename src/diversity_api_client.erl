@@ -57,7 +57,7 @@ call_diversity_api(Component, Tag, Action) ->
     case httpc:request(get, Request, [], Opts) of
         {ok, {{_Version, _Status, _ReasonPhrase}, _Headers, Body}} ->
             case Action of
-                file ->
+                {file, _} ->
                     Body;
                 tags ->
                     jiffy:decode(Body);

@@ -2,8 +2,11 @@
 
 -include_lib("eunit/include/eunit.hrl").
 
+start() ->
+    application:ensure_all_started(diversity).
+
 render_test() ->
-    inets:start(),
+    start(),
     Context = #{language => <<"en">>,
                 webshop => 32208,
                 webshopUrl => <<"https://shop.heynicebeard.com">>,

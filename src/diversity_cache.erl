@@ -38,7 +38,7 @@ get(Key, Fun, Timeout) ->
     end.
 
 start_link() ->
-    gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
+    gen_server:start_link({local, ?CACHE}, ?MODULE, [], []).
 
 init([]) ->
     ?CACHE = ets:new(?CACHE, [named_table, {read_concurrency, true}, {keypos, #entry.key}]),
