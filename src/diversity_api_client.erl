@@ -14,7 +14,16 @@ get_component_settings_schema(Component, Tag) ->
     {_, Settings} = get_diversity_json_and_settings(Component, Tag),
     Settings.
 
+%% @doc Fetches file content for a specific component and tag.
+-spec get_file(binary(), binary(), binary()) -> binary().
+get_file(Component, Tag, File) ->
+    call_diversity_api(Component, Tag, {file, File}).
 
+%%%%%%%%%%%%%%%%%%%%
+% Internal methods %
+%%%%%%%%%%%%%%%%%%%%
+
+-spec get_diversity_json_and_settings(binary(), binary()) -> {map(), map()}.
 get_diversity_json_and_settings(Component, Tag) ->
     Tag1 = case Tag of
         <<"*">> ->
@@ -29,16 +38,6 @@ get_diversity_json_and_settings(Component, Tag) ->
         end,
         1000 * 60 * 60 * 1 %% An hour
     ).
-
-
-%% @doc Fetches file content for a specific component and tag.
--spec get_file(binary(), binary(), binary()) -> binary().
-get_file(Component, Tag, File) ->
-    call_diversity_api(Component, Tag, {file, File}).
-
-%%%%%%%%%%%%%%%%%%%%
-% Internal methods %
-%%%%%%%%%%%%%%%%%%%%
 
 %% @doc Get latest tag from *.
 -spec get_latest_tag(binary()) -> binary().
@@ -57,7 +56,7 @@ call_diversity_api(Component, Tag, Action) ->
     case httpc:request(get, Request, [], Opts) of
         {ok, {{_Version, Status, _ReasonPhrase}, _Headers, Body}} ->
             case Status of
-                404 -> throw(file_missing);
+                404 -> throw(resource_not_found);
                 500 -> throw(server_error);
                 _   ->
                     case Action of
@@ -81,3 +80,27 @@ build_path(Component, Tag, settings) ->
     ["/components/", binary_to_list(Component), "/", binary_to_list(Tag), "/settings/"];
 build_path(Component, undefined, tags) ->
     ["/components/", binary_to_list(Component), "/"].
+
+-ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
+
+build_path_test() ->
+    %% Files
+    ?assertEqual(
+        ["/components/", "foobar", "/", "1.0.0", "/files/", "test.html"],
+        build_path(<<"foobar">>, <<"1.0.0">>, {file, <<"test.html">>})
+    ),
+    %% diversity json
+    ?assertEqual(
+        ["/components/", "foobar", "/", "1.0.0", "/"],
+        build_path(<<"foobar">>, <<"1.0.0">>, diversity_json)
+    ),
+    %% Settings
+    ?assertEqual(
+        ["/components/", "foobar", "/", "1.0.0", "/settings/"],
+        build_path(<<"foobar">>, <<"1.0.0">>, settings)
+    ),
+    %% Tags
+    ?assertEqual(["/components/", "foobar", "/"], build_path(<<"foobar">>, undefined, tags)).
+
+-endif.

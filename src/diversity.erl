@@ -116,7 +116,7 @@ load_component(Component, Version, State0) ->
                             try diversity_api_client:get_file(Component, Version, TranslationPath) of
                                 Translation -> maps:put(Component, Translation, Translations0)
                             catch
-                                error:case_clause -> Translations0
+                                throw:resource_not_found -> Translations0
                             end;
                         _NotFound ->
                             Translations0
@@ -163,4 +163,3 @@ fold(Settings, #{<<"type">> := <<"array">>, <<"items">> := Schema}, Fun, Acc0) w
     lists:foldl(fun (Item, Acc) -> fold(Item, Schema, Fun, Acc) end, Acc0, Settings);
 fold(_Settings, _Schema, _Fun, Acc) ->
     Acc.
-
