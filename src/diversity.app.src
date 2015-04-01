@@ -1,0 +1,17 @@
+{application, diversity, [
+    {description, ""},
+    {vsn, "0.1.0"},
+    {id, "git"},
+    {modules, []},
+    {registered, []},
+    {applications, [
+        kernel,
+        stdlib,
+        inets,
+        ssl,
+        jiffy,
+        cowboy
+    ]},
+    {mod, {diversity_app, []}},
+    {env, []}
+]}.

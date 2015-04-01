@@ -1123,6 +1123,9 @@ distclean-escript:
 ifeq ($(strip $(TEST_DIR)),)
 TAGGED_EUNIT_TESTS = {dir,"ebin"}
 else
+ifeq ($(wildcard $(TEST_DIR)),)
+TAGGED_EUNIT_TESTS = {dir,"ebin"}
+else
 # All modules in TEST_DIR
 TEST_DIR_MODS = $(notdir $(basename $(shell find $(TEST_DIR) -type f -name *.beam)))
 # All modules in 'ebin'
@@ -1132,8 +1135,9 @@ EUNIT_EBIN_MODS = $(notdir $(basename $(shell find ebin -type f -name *.beam)))
 EUNIT_MODS = $(filter-out $(patsubst %,%_tests,$(EUNIT_EBIN_MODS)),$(TEST_DIR_MODS))
 TAGGED_EUNIT_TESTS = {dir,"ebin"} $(foreach mod,$(EUNIT_MODS),$(shell echo $(mod) | sed -e 's/\(.*\)/{module,\1}/g'))
 endif
+endif
 
-EUNIT_OPTS ?= verbose
+EUNIT_OPTS ?=
 
 # Utility functions
 
@@ -1172,7 +1176,7 @@ RELX_CONFIG ?= $(CURDIR)/relx.config
 RELX ?= $(CURDIR)/relx
 export RELX
 
-RELX_URL ?= https://github.com/erlware/relx/releases/download/v1.1.0/relx
+RELX_URL ?= https://github.com/erlware/relx/releases/download/v1.2.0/relx
 RELX_OPTS ?=
 RELX_OUTPUT_DIR ?= _rel
 
@@ -1241,6 +1245,7 @@ shell: build-shell-deps
 # Copyright (c) 2015, Loïc Hoguin <essen@ninenines.eu>
 # This file is part of erlang.mk and subject to the terms of the ISC License.
 
+ifneq ($(wildcard $(DEPS_DIR)/triq),)
 .PHONY: triq
 
 # Targets.
@@ -1266,4 +1271,5 @@ triq: test-build
 	$(eval MODULES := $(shell find ebin -type f -name \*.beam \
 		| sed "s/ebin\//'/;s/\.beam/',/" | sed '$$s/.$$//'))
 	$(gen_verbose) $(call triq_run,[true] =:= lists:usort([triq:check(M) || M <- [$(MODULES)]]))
+endif
 endif
