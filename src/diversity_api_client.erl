@@ -68,7 +68,7 @@ call_diversity_api(Component, Tag, Action) ->
     end.
 
 build_path(Component, Tag, {file, File}) ->
-    ["/components/", binary_to_list(Component), "/", binary_to_list(Tag), "files/",
+    ["/components/", binary_to_list(Component), "/", binary_to_list(Tag), "/files/",
      binary_to_list(File)];
 build_path(Component, Tag, diversity_json) ->
     ["/components/", binary_to_list(Component), "/", binary_to_list(Tag), "/"];
