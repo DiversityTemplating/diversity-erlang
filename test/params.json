@@ -1,0 +1,745 @@
+{
+    "component": "tws-theme",
+    "settings": {
+      "custom_css": {
+        "rules": ".twsPriceCurrent .twsPriceCurrentDiff { color: red }"
+      },
+      "custom_js": {
+        "srcs": []
+      },
+      "layout": {
+        "footer": [
+          {
+            "component": "tws-container",
+            "settings": {
+              "components": [
+                {
+                  "component": "tws-contact-info",
+                  "settings": {
+                    "content": {
+                      "en": {
+                        "addressRowFive": "Sweden",
+                        "addressRowFour": "Gothenburg",
+                        "addressRowOne": "Hey, Nice Beard",
+                        "addressRowThree": "41506",
+                        "addressRowTwo": "Kungsportsavenyn 42",
+                        "email": "weshiplocally@branding.com",
+                        "showTerms": true,
+                        "telFull": "+15-995-86-76",
+                        "telHuman": "505-995-86-76",
+                        "termsLinkText": "Terms & Conditions"
+                      },
+                      "sv": {
+                        "addressRowFive": "Sverige",
+                        "addressRowFour": "Göteborg",
+                        "addressRowOne": "Hey, Nice Beard",
+                        "addressRowThree": "41506",
+                        "addressRowTwo": "Kungsportsavenyn 42",
+                        "email": "weshiplocally@branding.se",
+                        "showTerms": true,
+                        "telFull": "+46-505-766-44",
+                        "telHuman": "505-766-44",
+                        "termsLinkText": "Villkor & Info"
+                      }
+                    }
+                  }
+                }
+              ],
+              "container_class": "container"
+            }
+          }
+        ],
+        "pages": {
+          "Article": {
+            "components": [
+              {
+                "component": "tws-container",
+                "settings": {
+                  "components": [
+                    {
+                      "component": "tws-article",
+                      "settings": {
+                        "choicesAsVariants": true,
+                        "maxVariants": 20,
+                        "sharebutton": true
+                      }
+                    }
+                  ],
+                  "container_class": "container"
+                }
+              }
+            ]
+          },
+          "ArticleSearchResults": {
+            "components": [
+              {
+                "component": "tws-container",
+                "settings": {
+                  "components": [
+                    {
+                      "component": "tws-article-search-page",
+                      "settings": {}
+                    }
+                  ],
+                  "container_class": "container"
+                }
+              }
+            ],
+            "routing": {
+              "url": {
+                "en": "/search/:term",
+                "sv": "/sok/:term"
+              }
+            }
+          },
+          "Articlegroup": {
+            "components": [
+              {
+                "component": "tws-container",
+                "settings": {
+                  "components": [
+                    {
+                      "component": "tws-articlegroup-list",
+                      "settings": {
+                        "controls": {
+                          "availableSort": [
+                            "name",
+                            "price",
+                            "articleNumber",
+                            "weight"
+                          ],
+                          "hide": {
+                            "descending": false,
+                            "infinite": false,
+                            "pageSize": false,
+                            "pagination": false,
+                            "sort": false,
+                            "type": false
+                          },
+                          "pageSize": [
+                            12,
+                            24,
+                            48,
+                            120,
+                            480
+                          ],
+                          "type": "grid"
+                        },
+                        "defaults": {
+                          "descending": false,
+                          "infinite": true,
+                          "items": 4,
+                          "pageSize": 24,
+                          "sort": "name"
+                        },
+                        "show": {
+                          "description": true,
+                          "name": true
+                        }
+                      }
+                    },
+                    {
+                      "component": "tws-article-list",
+                      "settings": {
+                        "controls": {
+                          "availableSort": [
+                            "name",
+                            "price"
+                          ],
+                          "hide": {
+                            "descending": false,
+                            "infinite": true,
+                            "pageSize": false,
+                            "pagination": false,
+                            "sort": false,
+                            "type": false
+                          },
+                          "pageSize": [
+                            12,
+                            24,
+                            48,
+                            120,
+                            480
+                          ],
+                          "type": "grid"
+                        },
+                        "defaults": {
+                          "descending": false,
+                          "infinite": true,
+                          "items": 4,
+                          "pageSize": 48,
+                          "sort": "name"
+                        }
+                      }
+                    }
+                  ],
+                  "container_class": "container"
+                }
+              }
+            ]
+          },
+          "Cart": {
+            "components": [
+              {
+                "component": "tws-container",
+                "settings": {
+                  "components": [
+                    {
+                      "component": "tws-cart",
+                      "settings": {
+                        "editable": true,
+                        "zebra": true
+                      }
+                    },
+                    {
+                      "component": "tws-pre-checkout",
+                      "settings": {}
+                    }
+                  ],
+                  "container_class": "container"
+                }
+              }
+            ],
+            "routing": {
+              "url": {
+                "en": "/cart/:orderUid",
+                "sv": "/varukorg/:orderUid"
+              }
+            }
+          },
+          "Checkout": {
+            "components": [
+              {
+                "component": "tws-container",
+                "settings": {
+                  "components": [
+                    {
+                      "component": "tws-cart",
+                      "settings": {
+                        "editable": false,
+                        "immutable": true,
+                        "zebra": true
+                      }
+                    },
+                    {
+                      "component": "tws-checkout",
+                      "settings": {
+                        "showDiscountCodeField": false
+                      }
+                    }
+                  ],
+                  "container_class": "container"
+                }
+              }
+            ],
+            "routing": {
+              "url": {
+                "en": "/checkout/:orderUid",
+                "sv": "/kassa/:orderUid"
+              }
+            }
+          },
+          "CheckoutReturnPage": {
+            "components": [
+              {
+                "component": "tws-container",
+                "settings": {
+                  "components": [
+                    {
+                      "component": "tws-cart",
+                      "settings": {
+                        "editable": false,
+                        "immutable": true,
+                        "zebra": true
+                      }
+                    },
+                    {
+                      "component": "tws-checkout-success",
+                      "settings": {}
+                    }
+                  ],
+                  "container_class": "container"
+                }
+              }
+            ],
+            "routing": {
+              "url": {
+                "en": "/order-done/:orderUid",
+                "sv": "/bestallning-klar/:orderUid"
+              }
+            }
+          },
+          "CustomPage": {
+            "components": [
+              {
+                "component": "tws-container",
+                "settings": {
+                  "components": [
+                    {
+                      "component": "tws-custom-page",
+                      "settings": {}
+                    }
+                  ],
+                  "container_class": "container"
+                }
+              }
+            ]
+          },
+          "StartPage": {
+            "components": [
+              {
+                "component": "tws-container",
+                "settings": {
+                  "components": [
+                    {
+                      "component": "tws-image-carousel",
+                      "settings": {
+                        "arrows": true,
+                        "autoplay": {
+                          "on": true,
+                          "speed": 3000
+                        },
+                        "dots": true,
+                        "fadeSpeed": 700,
+                        "images": [
+                          {
+                            "image": "https://shop.textalk.se/shop/32208/files/BeardROSS.jpg",
+                            "link": ""
+                          },
+                          {
+                            "image": "https://shop.textalk.se/shop/32208/files/mma.jpg",
+                            "link": ""
+                          },
+                          {
+                            "image": "https://shop.textalk.se/shop/32208/files/homeless-dude-big-beard.jpg",
+                            "link": ""
+                          },
+                          {
+                            "image": "https://shop.textalk.se/shop/32208/files//beard-fitzpatrick.jpg",
+                            "link": ""
+                          }
+                        ],
+                        "ratio": 0.31488,
+                        "setSizes": true,
+                        "transition": "slide"
+                      }
+                    },
+                    {
+                      "component": "tws-content-box",
+                      "settings": {
+                        "content": {
+                          "en": {
+                            "link": "",
+                            "textColorInvert": false,
+                            "thirdLine": "Big. Mighty. Beards"
+                          },
+                          "sv": {
+                            "firstLine": "rad",
+                            "link": "tws://article/24199418",
+                            "secondLine": "read",
+                            "textColorInvert": false,
+                            "thirdLine": "Stora. Mäktiga. Skägg."
+                          }
+                        },
+                        "customOuterClasses": [
+                          "promo-box-top"
+                        ],
+                        "horizontalAlign": "center",
+                        "verticalAlign": "middle"
+                      }
+                    },
+                    {
+                      "component": "tws-columns",
+                      "settings": {
+                        "columns": [
+                          {
+                            "classes": "col-xs-12 col-sm-12 col-md-6 col-lg-6 promo-box-left",
+                            "components": [
+                              {
+                                "component": "tws-content-box",
+                                "settings": {
+                                  "content": {
+                                    "en": {
+                                      "image": "https://shop.textalk.se/shop/32208/files/shopclues.jpg",
+                                      "link": "",
+                                      "textColorInvert": false,
+                                      "thirdLine": "Trimmers"
+                                    },
+                                    "sv": {
+                                      "image": "https://shop.textalk.se/shop/32208/files/shopclues.jpg",
+                                      "link": "tws://articlegroup/1857923",
+                                      "textColorInvert": false,
+                                      "thirdLine": "Trimmers"
+                                    }
+                                  },
+                                  "customClasses": [
+                                    "promo-box-large"
+                                  ],
+                                  "customOuterClasses": [
+                                    "promo-box-1"
+                                  ],
+                                  "horizontalAlign": "right",
+                                  "verticalAlign": "bottom"
+                                }
+                              },
+                              {
+                                "component": "tws-columns",
+                                "settings": {
+                                  "columns": [
+                                    {
+                                      "classes": "col-sm-6",
+                                      "components": [
+                                        {
+                                          "component": "tws-content-box",
+                                          "settings": {
+                                            "content": {
+                                              "en": {
+                                                "link": "",
+                                                "textColorInvert": false
+                                              },
+                                              "sv": {
+                                                "image": "https://shop.textalk.se/shop/32208/files/beard4.jpg",
+                                                "link": "",
+                                                "textColorInvert": false
+                                              }
+                                            },
+                                            "customClasses": [
+                                              "promo-box-small"
+                                            ],
+                                            "customOuterClasses": [
+                                              "promo-box-2"
+                                            ],
+                                            "horizontalAlign": "left",
+                                            "verticalAlign": "top"
+                                          }
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "classes": "col-sm-6",
+                                      "components": [
+                                        {
+                                          "component": "tws-content-box",
+                                          "settings": {
+                                            "content": {
+                                              "en": {
+                                                "link": "",
+                                                "textColorInvert": false
+                                              },
+                                              "sv": {
+                                                "image": "https://shop.textalk.se/shop/32208/files/RV-AO139_WOLFE__GS_20140813133112_(1).jpg",
+                                                "link": "",
+                                                "textColorInvert": false
+                                              }
+                                            },
+                                            "customClasses": [
+                                              "promo-box-small"
+                                            ],
+                                            "customOuterClasses": [
+                                              "promo-box-3"
+                                            ],
+                                            "horizontalAlign": "left",
+                                            "verticalAlign": "bottom"
+                                          }
+                                        }
+                                      ]
+                                    }
+                                  ],
+                                  "row_classes": "row promo-boxes-small"
+                                }
+                              }
+                            ]
+                          },
+                          {
+                            "classes": "col-xs-12 col-sm-12 col-md-6 col-lg-6 promo-box-right",
+                            "components": [
+                              {
+                                "component": "tws-content-box",
+                                "settings": {
+                                  "content": {
+                                    "en": {
+                                      "image": "https://shop.textalk.se/shop/32208/files/barberTEMPlogo_v6.jpg",
+                                      "link": "tws://custompage/8148110",
+                                      "secondLine": "Beard",
+                                      "textColorInvert": false,
+                                      "thirdLine": "Inspiration"
+                                    },
+                                    "sv": {
+                                      "firstLine": "",
+                                      "image": "https://shop.textalk.se/shop/32208/files/barberTEMPlogo_v6.jpg",
+                                      "link": "tws://custompage/8148110",
+                                      "secondLine": "Skägg-",
+                                      "textColorInvert": false,
+                                      "thirdLine": "Inspiration"
+                                    }
+                                  },
+                                  "customClasses": [
+                                    "promo-box-large"
+                                  ],
+                                  "customOuterClasses": [
+                                    "promo-box-4"
+                                  ],
+                                  "horizontalAlign": "left",
+                                  "verticalAlign": "bottom"
+                                }
+                              },
+                              {
+                                "component": "tws-columns",
+                                "settings": {
+                                  "columns": [
+                                    {
+                                      "classes": "col-sm-6",
+                                      "components": [
+                                        {
+                                          "component": "tws-content-box",
+                                          "settings": {
+                                            "content": {
+                                              "en": {
+                                                "link": "",
+                                                "textColorInvert": false
+                                              },
+                                              "sv": {
+                                                "image": "https://shop.textalk.se/shop/32208/files/c55bed09c8c8459433f1a397cacf188e.jpg",
+                                                "link": "",
+                                                "textColorInvert": false
+                                              }
+                                            },
+                                            "customClasses": [
+                                              "promo-box-small"
+                                            ],
+                                            "customOuterClasses": [
+                                              "promo-box-5"
+                                            ],
+                                            "horizontalAlign": "left",
+                                            "verticalAlign": "bottom"
+                                          }
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "classes": "col-sm-6",
+                                      "components": [
+                                        {
+                                          "component": "tws-content-box",
+                                          "settings": {
+                                            "content": {
+                                              "en": {
+                                                "link": "",
+                                                "textColorInvert": false
+                                              },
+                                              "sv": {
+                                                "image": "https://shop.textalk.se/shop/32208/files/ryan.jpg",
+                                                "link": "",
+                                                "textColorInvert": false
+                                              }
+                                            },
+                                            "customClasses": [
+                                              "promo-box-small"
+                                            ],
+                                            "customOuterClasses": [
+                                              "promo-box-6"
+                                            ],
+                                            "horizontalAlign": "left",
+                                            "verticalAlign": "bottom"
+                                          }
+                                        }
+                                      ]
+                                    }
+                                  ],
+                                  "row_classes": "row promo-boxes-small"
+                                }
+                              }
+                            ]
+                          }
+                        ],
+                        "row_classes": "row promo-boxes"
+                      }
+                    },
+                    {
+                      "component": "tws-articles",
+                      "settings": {
+                        "articles": [
+                          null
+                        ],
+                        "customClasses": [
+                          "promoted-articles"
+                        ],
+                        "items": 4
+                      }
+                    }
+                  ],
+                  "container_class": "container"
+                }
+              }
+            ]
+          }
+        },
+        "top": [
+          {
+            "component": "tws-container",
+            "settings": {
+              "components": [
+                {
+                  "component": "tws-columns",
+                  "settings": {
+                    "columns": [
+                      {
+                        "classes": "col-xs-6 col-md-4 col-lg-3",
+                        "components": [
+                          {
+                            "component": "tws-custom-html",
+                            "settings": {
+                              "custom_html": {
+                                "en": "Cusomer service <a href=\"tel:+44 123 456 789\">+44 123 456 789</a>",
+                                "sv": "<p>Kundtj&auml;nst <a href=\"tel:+44 123 456 789\">+44 123 456 789</a></p>\n<script type=\"text/javascript\">// <![CDATA[\nvar _txb = _txb || {};\n_txb.tar = 'http://www.textalk.se/webshop/priser/';\n_txb.txt = 'Rea på alla produkter!';\n_txb.btn = 'Handla!';\n_txb.clr = 'orangeish';\n\n(function() {t=document.createElement('script');t.type='text/javascript';t.async=true;t.src='http://texbar.com/texbar.min.js';s=document.getElementsByTagName('script')[0];s.parentNode.insertBefore(t, s);})();\n// ]]></script>"
+                              }
+                            }
+                          }
+                        ]
+                      },
+                      {
+                        "classes": "col-xs-6 col-md-4 col-lg-3",
+                        "components": [
+                          {
+                            "component": "tws-custom-html",
+                            "settings": {
+                              "custom_html": {
+                                "en": "We ship worldwide",
+                                "sv": "Internationell frakt"
+                              }
+                            }
+                          }
+                        ]
+                      },
+                      {
+                        "classes": "col-xs-3 col-md-1 col-lg-offset-2",
+                        "components": [
+                          {
+                            "component": "tws-currency",
+                            "settings": {}
+                          }
+                        ]
+                      },
+                      {
+                        "classes": "col-xs-3 col-md-1",
+                        "components": [
+                          {
+                            "component": "tws-language",
+                            "settings": {}
+                          }
+                        ]
+                      },
+                      {
+                        "classes": "col-xs-6 col-md-2 pull-right text-right",
+                        "components": [
+                          {
+                            "component": "tws-micro-cart",
+                            "settings": {
+                              "cartLabel": {
+                                "en": "Your cart",
+                                "sv": "Varukorg"
+                              },
+                              "enabled": true
+                            }
+                          }
+                        ]
+                      }
+                    ],
+                    "row_classes": "row"
+                  }
+                }
+              ],
+              "container_class": "container",
+              "outer_classes": "top-bar"
+            }
+          },
+          {
+            "component": "tws-container",
+            "settings": {
+              "components": [
+                {
+                  "component": "tws-columns",
+                  "settings": {
+                    "columns": [
+                      {
+                        "classes": "col-xs-12 col-sm-12 col-md-6 col-lg-6 col-md-offset-3 col-lg-offset-3",
+                        "components": [
+                          {
+                            "component": "tws-logo",
+                            "settings": {
+                              "content": {
+                                "en": {
+                                  "image": "https://shop.textalk.se/shop/32208/files/heynicebeardlogo.png"
+                                },
+                                "sv": {
+                                  "image": "https://shop.textalk.se/shop/32208/files/heynicebeardlogoai_1024.png"
+                                }
+                              }
+                            }
+                          }
+                        ]
+                      },
+                      {
+                        "classes": "col-xs-10 col-sm-12 col-md-2 col-lg-2 col-md-offset-1 col-lg-offset-1",
+                        "components": [
+                          {
+                            "component": "tws-article-search",
+                            "settings": {
+                              "placeholder": {
+                                "en": "Search",
+                                "sv": "Sök"
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    ],
+                    "row_classes": "row header-bar"
+                  }
+                },
+                {
+                  "component": "tws-top-menu",
+                  "settings": {
+                    "expand": false,
+                    "megaMenu": false,
+                    "menuItems": [
+                      {
+                        "depth": 3,
+                        "expand": true,
+                        "subitems": [
+                          "Stora skägg",
+                          "Små skägg",
+                          "Trimmer",
+                          "Mellan skägg",
+                          "Szabo",
+                          "Favoriter"
+                        ],
+                        "submenu": true,
+                        "url": "tws://articlegroup/"
+                      },
+                      {
+                        "depth": -1,
+                        "expand": false,
+                        "submenu": false,
+                        "title": "test",
+                        "type": "Sida",
+                        "url": "tws://custompage/8148399/"
+                      }
+                    ]
+                  }
+                }
+              ],
+              "container_class": "container",
+              "outer_classes": "cocktail-bar"
+            }
+          }
+        ]
+      },
+      "theme": {
+        "accentColor": "rgb(0, 0, 0)",
+        "basicColor": "rgb(236, 236, 236)",
+        "documentColor": "rgb(255, 255, 255)",
+        "styleUrl": "http://effie.textalk.com:3002/aficionado"
+      }
+    }
+}
