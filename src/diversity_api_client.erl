@@ -1,6 +1,8 @@
 -module(diversity_api_client).
 
--export([get_diversity_json/2, get_component_settings_schema/2, get_file/3]).
+-export([get_diversity_json/2, get_component_settings_schema/2, get_file/3, call_diversity_api/3]).
+
+-define(RESOURCE_CACHE_TIME, 1000 * 60 * 60 * 1). %% An hour
 
 %% @doc Fetches the diversity json for a specific Component and Tag
 -spec get_diversity_json(binary(), binary()) -> map().
@@ -17,7 +19,18 @@ get_component_settings_schema(Component, Tag) ->
 %% @doc Fetches file content for a specific component and tag.
 -spec get_file(binary(), binary(), binary()) -> binary().
 get_file(Component, Tag, File) ->
-    call_diversity_api(Component, Tag, {file, File}).
+    Tag1 = case Tag of
+        <<"*">> ->
+            get_latest_tag(Component);
+        _ -> Tag
+    end,
+    diversity_cache:get(
+        {Component, Tag1, File},
+        fun() ->
+              call_diversity_api(Component, Tag, {file, File})
+        end,
+        ?RESOURCE_CACHE_TIME
+    ).
 
 %%%%%%%%%%%%%%%%%%%%
 % Internal methods %
@@ -36,7 +49,7 @@ get_diversity_json_and_settings(Component, Tag) ->
             {call_diversity_api(Component, Tag, diversity_json),
              call_diversity_api(Component, Tag, settings)}
         end,
-        1000 * 60 * 60 * 1 %% An hour
+        ?RESOURCE_CACHE_TIME
     ).
 
 %% @doc Get latest tag from *.
@@ -48,7 +61,6 @@ get_latest_tag(Component) ->
 %% Will make a http get call to the diversiyt-api server provided in the sys.config.
 -spec call_diversity_api(binary(), binary(), atom()) -> binary() | term() | map().
 call_diversity_api(Component, Tag, Action) ->
-    Component, Tag, Action,
     {ok, Url} = application:get_env(diversity, diversity_api_url),
     Opts = [{body_format, binary}],
     Path = build_path(Component, Tag, Action),
