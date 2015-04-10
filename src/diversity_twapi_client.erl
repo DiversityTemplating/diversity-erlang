@@ -1,32 +1,26 @@
+
 -module(diversity_twapi_client).
 
--export([url_get/2, theme_get/3, theme_select/3]).
+-export([get_url_info/2, theme_get/3, theme_select/3]).
 
-url_get(Url, PreviewKey) ->
+get_url_info(Url, PreviewKey) ->
     try
-        Url1 = case application:get_env(diversity, debug) of
-            {ok, true}  ->
-                {ok, DebugUrl} = application:get_env(diversity, debug_url),
-                DebugUrl;
-            {ok, false} ->
-                Url
-        end,
         QsBin = build_qs_bin({auth, PreviewKey}),
-        [{ok, UrlObj}] = post_to_twapi([{<<"Url.get">>, [Url1, true]}], QsBin),
-        {Url2, UrlObj1} = case maps:get(<<"type">>, UrlObj) of
+        [{ok, UrlObj}] = post_to_twapi([{<<"Url.get">>, [Url, true]}], QsBin),
+        {Url1, UrlObj1} = case maps:get(<<"type">>, UrlObj) of
             <<"Moved">> ->
                 MovedUrl = maps:get(<<"url">>, UrlObj),
                 [{ok, MovedUrlProps}] = post_to_twapi([{<<"Url.get">>, [MovedUrl, true]}], QsBin),
                 {MovedUrl, MovedUrlProps};
             _ ->
-                {Url1, UrlObj}
+                {Url, UrlObj}
         end,
         [{language, maps:get(<<"language">>, UrlObj1)},
          {webshop_uid, maps:get(<<"webshop">>, UrlObj1)},
-         {webshop_url, Url2}]
+         {webshop_url, Url1}]
     catch
         _ ->
-            throw(no_webshop_found)
+            {error, no_url_info}
     end.
 
 theme_get(ThemeId, WebshopId, PreviewKey) ->
@@ -39,7 +33,7 @@ theme_get(ThemeId, WebshopId, PreviewKey) ->
         ),
         Theme
     catch
-        _ -> throw(no_theme_found)
+        _ -> {error, no_theme_found}
     end.
 
 theme_select(WebshopId, PreviewKey, Headers) ->
@@ -54,7 +48,7 @@ theme_select(WebshopId, PreviewKey, Headers) ->
         Theme
     catch
         _ ->
-            throw(no_theme_found)
+            {error, no_theme_found}
     end.
 
 build_qs_bin(List) when is_list(List) ->
