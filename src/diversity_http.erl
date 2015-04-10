@@ -24,7 +24,7 @@ handle(Req, State) ->
             cowboy_req:reply(
                 500, [{<<"content-type">>, <<"text/plain">>}], <<"No theme found">>, Req
             );
-        throw:no_webshop_found ->
+        throw:no_url_info ->
             cowboy_req:reply(
                 200, [{<<"content-type">>, <<"text/plain">>}], <<"No webshop found">>, Req
             )
@@ -34,61 +34,118 @@ handle(Req, State) ->
 handle_diversity_request(Req) ->
     Req1 = redirect_if_preview(Req),
     %% Check if we have a theme_id on cookie
-    {ThemeIdCookie, Req2} = cowboy_req:cookie(<<"lang">>, Req1, <<>>),
-    {ThemeId, PreviewKey} = case binary:split(ThemeIdCookie, <<":">>) of
-        [<<>>]                  -> {undefined, undefined};
-        [ThemeId0]              -> {ThemeId0, undefined};
-        [ThemeId0, <<>>]        -> {ThemeId0, undefined};
-        [ThemeId0, PreviewKey0] -> {ThemeId0, PreviewKey0}
-    end,
-
-    {Url, Req3} = cowboy_req:url(Req2),
-
+    {ThemeId, PreviewKey} = get_themeid_and_from_cookie(Req),
+    {Url, Req3} = cowboy_req:url(Req1),
 
     %% Get webshop id with Url.get with the url we got and create a context to work with
-    UrlPropList = diversity_twapi_client:url_get(Url, PreviewKey),
-    WebshopUid = proplists:get_value(webshop_uid, UrlPropList),
+    UrlInfo = case get_url_info(Url, PreviewKey, Req) of
+        {error, no_url_info} -> throw(no_url_info);
+        UrlInfo0 -> UrlInfo0
+    end,
+
+    WebshopUid = proplists:get_value(webshop_uid, UrlInfo),
     {Headers, _} = cowboy_req:headers(Req3),
     Headers1 = header_key_value_to_list(Headers, []),
-    Theme = case ThemeId of
-        undefined ->
-            %% If we have no theme_id on do theme select
-            %% Now if we still have no theme id we should return failure
-            diversity_twapi_client:theme_select(WebshopUid, PreviewKey, Headers1);
-        _ ->
-            try
-                %% If we have a theme id on cookie do a Theme.get
-                diversity_twapi_client:theme_get(ThemeId, PreviewKey, WebshopUid)
-            catch
-                _ ->
-                    %% if object not found we do a Theme.select and try getting the correct theme id
-                    %% (Corner case we should fix that!)
-                    diversity_twapi_client:theme_select(WebshopUid, PreviewKey, Headers1)
-            end
-    end,
+    Theme = get_theme(ThemeId, WebshopUid, PreviewKey, Headers1),
 
     {ok, APIUrl} = application:get_env(diversity, twapi_url),
 
-    Context = #{<<"webshopUrl">> => proplists:get_value(webshop_url, UrlPropList),
+    Context = #{<<"webshopUrl">> => proplists:get_value(webshop_url, UrlInfo),
                 <<"webshop">>    => WebshopUid,
-                <<"language">>   => proplists:get_value(language, UrlPropList),
+                <<"language">>   => proplists:get_value(language, UrlInfo),
                 <<"apiUrl">>     => APIUrl},
     try
+        lager:info("Building ~p ~s", [WebshopUid, proplists:get_value(webshop_url, UrlInfo)]),
+        RenderTimeStart =
         %% All good? Send to renderer and let the magic happen in a nice try block.
-        Params = maps:get(<<"params">>, Theme),
-        io:format("Context: ~p~nParams: ~p~n", [Context, Params]),
-        Output = diversity:render(Params, Context),
+        Output = case application:get_env(diversity, verbose_log) of
+            {ok, true} ->
+                {Time, Result} = tc:timer(diversity,
+                                          render, [maps:get(<<"params">>, Theme), Context]),
+                lager:info("Rendering page took ~p", [Time]),
+                Result;
+            _ ->
+               diversity:render(maps:get(<<"params">>, Theme), Context)
+        end,
         {ok, _} = cowboy_req:reply(
             200, [{<<"content-type">>, <<"text/html">>}], Output, Req3
         )
     catch
-        Class:Type ->
-            io:format("Class: ~p~nType: ~p~nStacktrace: ~p~n", [Class, Type, erlang:get_stacktrace()]),
+        Class:Error ->
+            lager:info("~p ~p", [Class, Error]),
             {ok, _} = cowboy_req:reply(
                 500, [{<<"content-type">>, <<"text/plain">>}], "Internal server error", Req3
             )
     end,
     Req3.
+
+get_themeid_and_from_cookie(Req) ->
+    {ThemeIdCookie, _} = cowboy_req:cookie(<<"themeid">>, Req, <<>>),
+    case binary:split(ThemeIdCookie, <<":">>) of
+        [<<>>]                  -> {undefined, undefined};
+        [ThemeId0]              -> {ThemeId0, undefined};
+        [ThemeId0, <<>>]        -> {ThemeId0, undefined};
+        [ThemeId0, PreviewKey0] -> {ThemeId0, PreviewKey0}
+    end.
+
+get_url_info(Url, PreviewKey, Req) ->
+    %% Do we have debug mode on and a debug url? Use that instead.
+    Url1 = case application:get_env(diversity, debug) of
+        {ok, true}  ->
+            {ok, DebugUrl} = application:get_env(diversity, debug_url),
+            DebugUrl;
+        {ok, false} ->
+            Url
+    end,
+    %% Check if this is a stage first and then rewrite it!
+    %% Are we in a staging enviroment? Then perhaps we need to rewrite the url so we get the right
+    %% data from twapi. This is a specific textalk environment issue.
+    %% Probably break this out in a separate module handling staging.
+    Url2 = case application:get_env(diversity, staging) of
+        {ok, true} ->
+            {ok, StagingRegExp} = application:get_env(diversity, staging_regexp),
+            StagingRegExp /= undefined orelse Url1,
+            % [SplittedUrl, _] =
+            RealUrl = case re:split(Url1, StagingRegExp) of
+                SplittedUrl when SplittedUrl == 1 -> Url1;
+                [SplittedUrl, _]                  -> SplittedUrl
+            end,
+            {PathPart, _} = cowboy_req:path(Req),
+            {Qs, _} = cowboy_req:qs(Req),
+            <<RealUrl/binary, PathPart/binary, Qs/binary>>;
+        _ ->
+          Url1
+    end,
+
+    case diversity_twapi_client:get_url_info(Url2, PreviewKey) of
+        {error, no_url_info} ->
+            %% We haven't got any webshop id with the provided url.
+            %% Check against the hostname and rebuild the url if we get a new host url
+            {HostUrl, _} = cowboy_req:host_url(Req),
+            HostUrlInfo = diversity_twapi_client:url_get(HostUrl, PreviewKey),
+            HostUrlInfo /= {error, no_url_info} orelse throw(no_url_info),
+            {Path, _} = cowboy_req:host_url(Req),
+            WebshopUrl = proplists:get_value(webshop_url, HostUrlInfo),
+            NewUrl = <<WebshopUrl/binary, Path/binary>>,
+            diversity_twapi_client:url_get(NewUrl, PreviewKey);
+        UrlInfo0 when is_list(UrlInfo0) ->
+            UrlInfo0
+    end.
+
+get_theme(undefined, WebshopUid, PreviewKey, Headers) ->
+    %% If we have no theme_id on do theme select
+    %% Now if we still have no theme id we should return failure
+    diversity_twapi_client:theme_select(WebshopUid, PreviewKey, Headers);
+get_theme(ThemeId, WebshopUid, PreviewKey, Headers) ->
+    try
+        %% If we have a theme id on cookie do a Theme.get
+        diversity_twapi_client:theme_get(ThemeId, PreviewKey, WebshopUid)
+    catch
+        _ ->
+            %% if object not found we do a Theme.select and try getting the correct theme id
+            %% (Corner case we should fix that!)
+            diversity_twapi_client:theme_select(WebshopUid, PreviewKey, Headers)
+    end.
 
 redirect_if_preview(Req) ->
     case cowboy_req:qs_val(<<"preview_key">>, Req, undefined) of

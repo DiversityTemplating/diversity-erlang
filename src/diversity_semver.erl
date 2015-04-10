@@ -1,6 +1,6 @@
 -module(diversity_semver).
 
--export([expand_tag/2]).
+-export([expand_tag/2, resolve_constraints/1]).
 
 %% @doc Expand  an incoming tag into the latest matching tag
 %% Supported formats are:

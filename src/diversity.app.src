@@ -10,6 +10,7 @@
         inets,
         ssl,
         jiffy,
+        lager,
         cowboy
     ]},
     {mod, {diversity_app, []}},
