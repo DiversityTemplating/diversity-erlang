@@ -6,8 +6,8 @@
 
 start(_Type, _Args) ->
     Routes = [
-      {"/favicon.ico", diversity_resource_handler, [favicon]},
-      {"/sitemap.xml", diversity_resource_handler, [sitemap]},
+      {"/favicon.ico", diversity_resource_handler, favicon},
+      {"/sitemap.xml", diversity_resource_handler, sitemap},
       {"/backend/ha/check.txt", diversity_status_check, []},
       {"/", diversity_http, []}
     ],

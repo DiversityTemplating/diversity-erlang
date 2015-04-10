@@ -99,6 +99,32 @@ to_version(Version) when is_list(Version) ->
 to_version(Tag) when is_binary(Tag) ->
     to_version(binary:split(Tag, <<$.>>, [global])).
 
+resolve_constraints(Constraints) ->
+    resolve_constraints(Constraints, {0, 0, 0}).
+
+resolve_constraints([], Acc) ->
+    Acc;
+resolve_constraints([ConstraintBin | Constraints], Acc0) ->
+    Acc1 = case binary_to_constraint(ConstraintBin) of
+               any ->
+                   Acc0;
+               {atleast, Version} ->
+                   case Version >= Acc0 of
+                       true ->
+                           Version;
+                       false ->
+                           %% Log error because versions are not compatible
+                           Version
+                   end
+           end,
+    resolve_constraints(Constraints, Acc1).
+
+binary_to_constraint(<<"*">>) ->
+    '*';
+binary_to_constraint(<<"^", VersionBin/binary>>) ->
+    Version = to_version(VersionBin),
+    {atleast, Version}.
+
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 

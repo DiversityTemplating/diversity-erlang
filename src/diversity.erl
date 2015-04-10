@@ -6,106 +6,90 @@
 
 -record(state, {
           context,
-          components   = #{},
+          components,
           templates    = #{},
           translations = #{}
          }).
 
 %% @doc Render a diversity component with a given context
-render(#{<<"component">> := Component} = Params, Context) ->
-    %% Get latest if not otherwise specified
-    Version = maps:get(<<"version">>, Params, <<"*">>),
+render(Params, Context) ->
+    %% Retrive a list of all components with the right version
+    {ComponentList0, ComponentsVersions} = fold(fun get_component/2, {[], #{}}, Params),
+    ComponentList1 = lists:reverse(ComponentList0),
 
-    %% Get the diversity.json for the main component
-    _Diversity = diversity_api_client:get_diversity_json(Component, Version),
+    ?debugFmt("~nComponents: ~p~nVersions: ~p~n", [ComponentList1, ComponentsVersions]),
 
-    %% Get the settings from the supplied parameters
-    Settings = maps:get(<<"settings">>, Params, #{}),
+    Components = maps:map(fun resolve_component/2, ComponentsVersions),
 
-    %% Get the settings schema
-    Schema = diversity_api_client:get_component_settings_schema(Component, Version),
-
-    %% Retrive all components that need to be loaded
-    Fun = fun (SubComponent, Components) ->
-                  Entry0 = maps:with([<<"component">>, <<"version">>], SubComponent),
-                  Entry1 = maps:merge(#{<<"version">> => <<"*">>}, Entry0),
-                  [Entry1 | Components]
-          end,
-    Components0 = lists:reverse(fold(Settings, Schema, Fun, [])),
+    ?debugFmt("~nComponents: ~p~n", [Components]),
 
     %% Make sure all components are available
-    State = load_components(Components0, Context),
+    State0 = #state{components = Components, context = Context},
+    State1 = load_components(State0),
 
     %?debugFmt("~nState: ~p~n", [State]),
 
-    render_component(Settings, Schema, State).
+    #{<<"componentHTML">> := HTML} = map(render_fun(State1), Params),
+    HTML.
 
-render_component(#{<<"component">> := Name} = Component0, #{<<"type">> := <<"object">>, <<"format">> := <<"diversity">>},
-                 #state{context = Context0, templates = Templates} = State) ->
+render_fun(#state{context = Context0, templates = Templates}) ->
+    fun (#{<<"component">> := Name} = Component) ->
+            Settings = maps:get(<<"settings">>, Component, #{}),
 
-    % ?debugFmt("~nRendering component: ~p~n", [Name]),
-    %% Get resolved version from the state
-    #{<<"version">> := Version} = maps:get(Name, State#state.components),
+            %% Render HTML if a template exist
+            case maps:find(Name, Templates) of
+                {ok, Template} ->
+                    Context = Context0#{<<"settings">> => Settings, <<"settingsJSON">> => jiffy:encode(Settings)},
+                    Rendered = unicode:characters_to_binary(mustache:render(Template, Context)),
+                    %?debugFmt("~nComponent: ~p~nTemplate: ~p~nContext: ~p~nRendered: ~p~n", [Name, Template, Context1, Rendered]),
+                    Component#{<<"componentHTML">> => Rendered};
+                error ->
+                    Component
+            end
+    end.
 
-    %% Get the settings schema
-    Schema = diversity_api_client:get_component_settings_schema(Name, Version),
+resolve_component(_Name, _Constraints) ->
+    <<"*">>.
 
-    %% Render the children first
-    Settings0 = maps:get(<<"settings">>, Component0, #{}),
-    Settings1 = render_component(Settings0, Schema, State),
-    Component1 = Component0#{<<"settings">> => Settings1},
-
-    %% Render HTML if a template exist
-    case maps:find(Name, Templates) of
-        {ok, Template} ->
-            Context1 = Context0#{<<"settings">> => Settings1, <<"settingsJSON">> => jiffy:encode(Settings1)},
-            Component1#{<<"componentHTML">> => render_mustache(Template, Context1)};
+get_component(#{<<"component">> := Name} = Component, {ComponentList0, Components0}) ->
+    Constraint = maps:get(<<"version">>, Component, <<"*">>),
+    case maps:find(Name, Components0) of
+        {ok, Constraints} ->
+            %% Add the version to the components constraints
+            Components1 = maps:put(Name, [Constraint | Constraints], Components0),
+            {ComponentList0, Components1};
         error ->
-            Component1
-    end;
-render_component(Map, #{<<"type">> := <<"object">>, <<"properties">> := Properties}, State) when is_map(Map) ->
-    % ?debugFmt("~nMap: ~p~n", [Map]),
-    maps:map(fun (Property, Value) -> render_component(Value, maps:get(Property, Properties, #{}), State) end, Map);
-render_component(List, #{<<"type">> := <<"array">>, <<"items">> := Schema}, State) when is_list(List), is_map(Schema) ->
-    % ?debugFmt("~nList: ~p~n", [List]),
-    lists:map(fun (Item) -> render_component(Item, Schema, State) end, List);
-render_component(Term, _Schema, _State) ->
-    % ?debugFmt("~nLeaf: ~p~n", [Term]),
-    Term.
+%            Diversity = diversity_api_client:get_diversity_json(Name, Version),
+%            Dependencies = maps:get(<<"dependencies">>, Diversity, #{}),
+%            LoadDependency = fun (Dependency, _Version, Acc) ->
+%                                     get_component(#{<<"component">> => Dependency}, Acc)
+%                             end,
+%            {ComponentList1, Components1} = maps:fold(LoadDependency, Acc0, Dependencies),
+            Constraints = [Constraint],
+            ComponentList1 = [Name | ComponentList0],
+            Components1 = maps:put(Name, Constraints, Components0),
+            {ComponentList1, Components1}
+    end.
 
-render_mustache(Template, _Context) ->
-    Template.
-
-load_components(Components0, Context) ->
-    lists:foldl(
-      fun (#{<<"component">> := Component, <<"version">> := Version}, State) ->
-              case maps:is_key(Component, State#state.components) of
-                  true  -> State;
-                  false -> load_component(Component, Version, State)
-              end
-      end,
-      #state{context = Context},
-      Components0
+load_components(State) ->
+    maps:fold(
+      fun load_component/3,
+      State,
+      State#state.components
      ).
 
-load_component(Component, Version, State0) ->
+load_component(Component, #{<<"version">> := Version} = Diversity, State) ->
     #state{context = Context,
-           components = Components0,
            templates = Templates0,
-           translations = Translations0} = State0,
+           translations = Translations0} = State,
     Language = maps:get(language, Context, <<"en">>),
-
-    %% Retrive diversity.json
-    Diversity = diversity_api_client:get_diversity_json(Component, Version),
-
-    %% Add it the components fetched so far
-    Components1 = maps:put(Component, Diversity, Components0),
 
     %% Retrive the template if it exist
     Templates1 = case maps:find(<<"template">>, Diversity) of
                    {ok, TemplatePath} ->
                          Template = diversity_api_client:get_file(Component, Version, TemplatePath),
-                         maps:put(Component, Template, Templates0);
+                         Compiled = mustache:compile(Template),
+                         maps:put(Component, Compiled, Templates0);
                    error ->
                          Templates0
                  end,
@@ -122,44 +106,24 @@ load_component(Component, Version, State0) ->
                             Translations0
                     end,
 
-    %% Load the components dependencies
-    Dependencies = maps:get(<<"dependencies">>, Diversity, #{}),
-    State1 = State0#state{components = Components1, templates = Templates1, translations = Translations1},
-    maps:fold(fun load_dependency/3, State1, Dependencies).
+    State#state{templates = Templates1, translations = Translations1}.
 
-load_dependency(Dependency, Constraint, State) ->
-    case maps:find(Dependency, State#state.components) of
-        {ok, Component} ->
-            Version = maps:get(<<"version">>, Component, <<"*">>),
-            not satisfied(Version, Constraint) andalso error(version_constraint),
-            State;
-        error ->
-            load_component(Dependency, <<"*">>, State)
-    end.
+map(Fun, #{<<"component">> := _, <<"settings">> := Settings} = Component) ->
+    Fun(Component, map(Fun, Settings));
+map(Fun, Map) when is_map(Map) ->
+    maps:map(fun (_Property, Value) -> map(Fun, Value) end, Map);
+map(Fun, List) when is_list(List) ->
+    lists:map(fun (Item) -> map(Fun, Item) end, List);
+map(_Fun, Term) ->
+    Term.
 
-satisfied(_Version, _Constraint) ->
-    true.
-
-fold(#{<<"component">> := Name, <<"settings">> := Settings} = Component,
-     #{<<"type">> := <<"object">>, <<"format">> := <<"diversity">>},
-     Fun, Acc0) ->
-    Version = maps:get(<<"version">>, Component, <<"*">>),
-    Acc1 = Fun(Component, Acc0),
-    Schema = diversity_api_client:get_component_settings_schema(Name, Version),
-    fold(Settings, Schema, Fun, Acc1);
-fold(Settings, #{<<"type">> := <<"object">>, <<"properties">> := Properties}, Fun, Acc0) when is_map(Settings) ->
-    maps:fold(
-      fun (Property, Value, Acc) ->
-              case maps:find(Property, Properties) of
-                  {ok, PropertySchema} -> fold(Value, PropertySchema, Fun, Acc);
-
-                  _            -> Acc
-              end
-      end,
-      Acc0,
-      Settings
-     );
-fold(Settings, #{<<"type">> := <<"array">>, <<"items">> := Schema}, Fun, Acc0) when is_list(Settings) ->
-    lists:foldl(fun (Item, Acc) -> fold(Item, Schema, Fun, Acc) end, Acc0, Settings);
-fold(_Settings, _Schema, _Fun, Acc) ->
+fold(Fun, Acc0, #{<<"component">> := _} = Component) ->
+    Settings = maps:get(<<"settings">>, Component, #{}),
+    Acc1 = fold(Fun, Acc0, Settings),
+    Fun(Component, Acc1);
+fold(Fun, Acc0, Map) when is_map(Map) ->
+    maps:fold(fun (_Property, Value, Acc) -> fold(Fun, Acc, Value) end, Acc0, Map);
+fold(Fun, Acc0, List) when is_list(List) ->
+    lists:foldl(fun (Item, Acc) -> fold(Fun, Acc, Item) end, Acc0, List);
+fold(_Fun, Acc, _Term) ->
     Acc.

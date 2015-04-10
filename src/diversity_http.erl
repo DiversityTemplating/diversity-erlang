@@ -69,18 +69,21 @@ handle_diversity_request(Req) ->
 
     {ok, APIUrl} = application:get_env(diversity, twapi_url),
 
-    ContextMap = #{webshopUrl => proplists:get_value(webshop_url, UrlPropList),
-                   webshop    => WebshopUid,
-                   language   => proplists:get_value(language, UrlPropList),
-                   apiUrl     => APIUrl},
+    Context = #{<<"webshopUrl">> => proplists:get_value(webshop_url, UrlPropList),
+                <<"webshop">>    => WebshopUid,
+                <<"language">>   => proplists:get_value(language, UrlPropList),
+                <<"apiUrl">>     => APIUrl},
     try
         %% All good? Send to renderer and let the magic happen in a nice try block.
-        Output = diversity:render(maps:get(<<"params">>, Theme), ContextMap),
+        Params = maps:get(<<"params">>, Theme),
+        io:format("Context: ~p~nParams: ~p~n", [Context, Params]),
+        Output = diversity:render(Params, Context),
         {ok, _} = cowboy_req:reply(
             200, [{<<"content-type">>, <<"text/html">>}], Output, Req3
         )
     catch
-        _ ->
+        Class:Type ->
+            io:format("Class: ~p~nType: ~p~nStacktrace: ~p~n", [Class, Type, erlang:get_stacktrace()]),
             {ok, _} = cowboy_req:reply(
                 500, [{<<"content-type">>, <<"text/plain">>}], "Internal server error", Req3
             )

@@ -68,7 +68,7 @@ call_diversity_api(Component, Tag, Action) ->
     case httpc:request(get, Request, [], Opts) of
         {ok, {{_Version, Status, _ReasonPhrase}, _Headers, Body}} ->
             case Status of
-                404 -> throw(resource_not_found);
+                404 -> throw({resource_not_found, Component, Tag, Path});
                 500 -> throw(server_error);
                 _   ->
                     case Action of
