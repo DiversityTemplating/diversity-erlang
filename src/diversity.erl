@@ -13,22 +13,26 @@
 
 %% @doc Render a diversity component with a given context
 render(Params, Context) ->
-    %% Retrive a list of all components with the right version
+    %% Retrive a list of all components in the settings tree
     {ComponentList0, ComponentsVersions} = fold(fun get_component/2, {[], #{}}, Params),
     ComponentList1 = lists:reverse(ComponentList0),
-
     ?debugFmt("~nComponents: ~p~nVersions: ~p~n", [ComponentList1, ComponentsVersions]),
 
+    %% Resolve the correct version of the components
     Components = maps:map(fun resolve_component/2, ComponentsVersions),
-
     ?debugFmt("~nComponents: ~p~n", [Components]),
 
-    %% Make sure all components are available
+    %% Retrive a list of all components dependencies
+
+    %% Resolve the correct version of the dependencies
+
+    %% Make sure all components are available and loaded
     State0 = #state{components = Components, context = Context},
     State1 = load_components(State0),
 
     %?debugFmt("~nState: ~p~n", [State]),
 
+    %% Render the site
     #{<<"componentHTML">> := HTML} = map(render_fun(State1), Params),
     HTML.
 
