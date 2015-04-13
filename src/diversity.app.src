@@ -11,7 +11,8 @@
         ssl,
         jiffy,
         lager,
-        cowboy
+        cowboy,
+        mustache
     ]},
     {mod, {diversity_app, []}},
     {env, [{diversity_api_url, <<"http://api.diversity.io">>},

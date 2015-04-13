@@ -56,7 +56,6 @@ handle_diversity_request(Req) ->
                 <<"apiUrl">>     => APIUrl},
     try
         lager:info("Building ~p ~s", [WebshopUid, proplists:get_value(webshop_url, UrlInfo)]),
-        RenderTimeStart =
         %% All good? Send to renderer and let the magic happen in a nice try block.
         Output = case application:get_env(diversity, verbose_log) of
             {ok, true} ->
@@ -72,7 +71,7 @@ handle_diversity_request(Req) ->
         )
     catch
         Class:Error ->
-            lager:info("~p ~p", [Class, Error]),
+            io:format("~p ~p ~n", [Class, Error]),
             {ok, _} = cowboy_req:reply(
                 500, [{<<"content-type">>, <<"text/plain">>}], "Internal server error", Req3
             )

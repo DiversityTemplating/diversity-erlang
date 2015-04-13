@@ -5,30 +5,29 @@
 -define(RESOURCE_CACHE_TIME, 1000 * 60 * 60 * 1). %% An hour
 
 %% @doc Fetches the diversity json for a specific Component and Tag
--spec get_diversity_json(binary(), binary()) -> map().
+-spec get_diversity_json(binary(), binary()) -> {ok, map()} | undefined.
 get_diversity_json(Component, Tag) ->
-    {DiversityJson, _} = get_diversity_json_and_settings(Component, Tag),
-    DiversityJson.
+    diversity_get(Component, Tag, diversity_json).
 
 %% @doc Fetches settings for specific Component and Tag
--spec get_component_settings_schema(binary(), binary()) -> map().
+-spec get_component_settings_schema(binary(), binary()) -> {ok, map()} | undefined.
 get_component_settings_schema(Component, Tag) ->
-    {_, Settings} = get_diversity_json_and_settings(Component, Tag),
-    Settings.
+    diversity_get(Component, Tag, settings).
 
 %% @doc Fetches file content for a specific component and tag.
--spec get_file(binary(), binary(), binary()) -> binary().
-get_file(Component, Tag, File) ->
+-spec diversity_get(binary(), binary(), binary()) -> {ok, binary()} | undefined.
+get_file(Component, Tag, FilePath) ->
+    diversity_get(Component, Tag, {file, FilePath}).
+
+%% @doc Fetch a resource from the diversity-api
+diversity_get(Component, Tag, Action) ->
     Tag1 = case Tag of
-        <<"*">> ->
-            get_latest_tag(Component);
+        <<"*">> -> get_latest_tag(Component);
         _ -> Tag
     end,
     diversity_cache:get(
-        {Component, Tag1, File},
-        fun() ->
-              call_diversity_api(Component, Tag, {file, File})
-        end,
+        {Component, Tag1, Action},
+        fun() -> call_diversity_api(Component, Tag, Action) end,
         ?RESOURCE_CACHE_TIME
     ).
 
@@ -36,27 +35,13 @@ get_file(Component, Tag, File) ->
 % Internal methods %
 %%%%%%%%%%%%%%%%%%%%
 
--spec get_diversity_json_and_settings(binary(), binary()) -> {map(), map()}.
-get_diversity_json_and_settings(Component, Tag) ->
-    Tag1 = case Tag of
-        <<"*">> ->
-            get_latest_tag(Component);
-        _ -> Tag
-    end,
-    diversity_cache:get(
-        {Component, Tag1, diversity_json_and_settings},
-        fun () ->
-            {call_diversity_api(Component, Tag, diversity_json),
-             call_diversity_api(Component, Tag, settings)}
-        end,
-        ?RESOURCE_CACHE_TIME
-    ).
-
 %% @doc Get latest tag from *.
 -spec get_latest_tag(binary()) -> binary().
 get_latest_tag(Component) ->
-    Tags = call_diversity_api(Component, undefined, tags),
-    diversity_semver:expand_tag(<<"*">>, Tags).
+    case call_diversity_api(Component, undefined, tags) of
+        {ok, Tags} -> diversity_semver:expand_tag(<<"*">>, Tags);
+        undefined -> <<"*">>
+    end.
 
 %% Will make a http get call to the diversiyt-api server provided in the sys.config.
 -spec call_diversity_api(binary(), binary(), atom()) -> binary() | term() | map().
@@ -68,18 +53,19 @@ call_diversity_api(Component, Tag, Action) ->
     case httpc:request(get, Request, [], Opts) of
         {ok, {{_Version, Status, _ReasonPhrase}, _Headers, Body}} ->
             case Status of
-                404 -> throw({resource_not_found, Component, Tag, Path});
+                404 -> undefined;
                 500 -> throw(server_error);
                 _   ->
-                    case Action of
-                        {file, _} ->
-                            Body;
-                        tags ->
-                            jiffy:decode(Body);
-                        _ ->
-                            %% Settings and diversity json
-                            jiffy:decode(Body, [return_maps])
-                    end
+                    Result = case Action of
+                                 {file, _} ->
+                                     Body;
+                                 tags ->
+                                     jiffy:decode(Body);
+                                 _ ->
+                                     %% Settings and diversity json
+                                     jiffy:decode(Body, [return_maps])
+                             end,
+                    {ok, Result}
             end
     end.
 
