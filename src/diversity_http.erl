@@ -49,22 +49,24 @@ handle_diversity_request(Req) ->
     Theme = get_theme(ThemeId, WebshopUid, PreviewKey, Headers1),
 
     {ok, APIUrl} = application:get_env(diversity, twapi_url),
+    {ok, DiversityURL} = application:get_env(diversity, diversity_api_url),
 
+    Language = proplists:get_value(language, UrlInfo),
     Context = #{<<"webshopUrl">> => proplists:get_value(webshop_url, UrlInfo),
-                <<"webshop">>    => WebshopUid,
-                <<"language">>   => proplists:get_value(language, UrlInfo),
-                <<"apiUrl">>     => APIUrl},
+                <<"webshopUid">> => WebshopUid,
+                <<"apiUrl">>     => APIUrl,
+                <<"serveWithStyleUrl">> => <<DiversityURL/binary, $/>>},
     try
         lager:info("Building ~p ~s", [WebshopUid, proplists:get_value(webshop_url, UrlInfo)]),
         %% All good? Send to renderer and let the magic happen in a nice try block.
         Output = case application:get_env(diversity, verbose_log) of
             {ok, true} ->
-                {Time, Result} = tc:timer(diversity,
-                                          render, [maps:get(<<"params">>, Theme), Context]),
+                {Time, Result} = timer:tc(diversity,
+                                          render, [maps:get(<<"params">>, Theme), Language, Context]),
                 lager:info("Rendering page took ~p", [Time]),
                 Result;
             _ ->
-               diversity:render(maps:get(<<"params">>, Theme), Context)
+               diversity:render(maps:get(<<"params">>, Theme), Language, Context)
         end,
         {ok, _} = cowboy_req:reply(
             200, [{<<"content-type">>, <<"text/html">>}], Output, Req3

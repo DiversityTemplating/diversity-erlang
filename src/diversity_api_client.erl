@@ -1,33 +1,53 @@
 -module(diversity_api_client).
 
--export([get_diversity_json/2, get_component_settings_schema/2, get_file/3, call_diversity_api/3]).
+-export([get_diversity_json/2, get_file/3, get_tags/1, get_versions/1]).
 
 -define(RESOURCE_CACHE_TIME, 1000 * 60 * 60 * 1). %% An hour
 
 %% @doc Fetches the diversity json for a specific Component and Tag
--spec get_diversity_json(binary(), binary()) -> {ok, map()} | undefined.
-get_diversity_json(Component, Tag) ->
-    diversity_get(Component, Tag, diversity_json).
-
-%% @doc Fetches settings for specific Component and Tag
--spec get_component_settings_schema(binary(), binary()) -> {ok, map()} | undefined.
-get_component_settings_schema(Component, Tag) ->
-    diversity_get(Component, Tag, settings).
+-spec get_diversity_json(binary(), diversity_semver:semver()) -> {ok, map()} | undefined.
+get_diversity_json(Component, Version) ->
+    Tag = diversity_semver:semver_to_binary(Version),
+    Path = ["/components/", unicode:characters_to_list(Component), "/", unicode:characters_to_list(Tag), "/"],
+    diversity_cache:get(
+        {Component, Version, diversity_json},
+        fun () ->
+            {ok, DiversityJSON} = call_api(Path),
+            Diversity = jiffy:decode(DiversityJSON, [return_maps]),
+            not is_map(Diversity) andalso throw({invalid_component, Component, Version, diversity_json}),
+            Diversity
+        end,
+        ?RESOURCE_CACHE_TIME
+    ).
 
 %% @doc Fetches file content for a specific component and tag.
--spec diversity_get(binary(), binary(), binary()) -> {ok, binary()} | undefined.
-get_file(Component, Tag, FilePath) ->
-    diversity_get(Component, Tag, {file, FilePath}).
-
-%% @doc Fetch a resource from the diversity-api
-diversity_get(Component, Tag, Action) ->
-    Tag1 = case Tag of
-        <<"*">> -> get_latest_tag(Component);
-        _ -> Tag
-    end,
+-spec get_file(binary(), diversity_semver:semver(), binary()) -> {ok, binary()} | undefined.
+get_file(Component0, Version0, FilePath0) ->
+    Component1 = unicode:characters_to_list(Component0),
+    Version1 = unicode:characters_to_list(diversity_semver:semver_to_binary(Version0)),
+    FilePath1 = unicode:characters_to_list(FilePath0),
+    Path = ["/components/", Component1, "/", Version1, "/files/", FilePath1],
     diversity_cache:get(
-        {Component, Tag1, Action},
-        fun() -> call_diversity_api(Component, Tag, Action) end,
+        {Component0, Version0, FilePath0},
+        fun () -> call_api(Path) end,
+        ?RESOURCE_CACHE_TIME
+    ).
+
+get_versions(Component) ->
+    diversity_cache:get(
+        {Component, tags},
+        fun () ->
+            lists:filtermap(
+              fun (Tag) ->
+                  try diversity_semver:binary_to_semver(Tag) of
+                      Version -> {true, Version}
+                  catch
+                      error:badarg -> false
+                  end
+              end,
+              get_tags(Component)
+             )
+        end,
         ?RESOURCE_CACHE_TIME
     ).
 
@@ -35,70 +55,22 @@ diversity_get(Component, Tag, Action) ->
 % Internal methods %
 %%%%%%%%%%%%%%%%%%%%
 
-%% @doc Get latest tag from *.
--spec get_latest_tag(binary()) -> binary().
-get_latest_tag(Component) ->
-    case call_diversity_api(Component, undefined, tags) of
-        {ok, Tags} -> diversity_semver:expand_tag(<<"*">>, Tags);
-        undefined -> <<"*">>
-    end.
+get_tags(Component) ->
+    Path = ["/components/", unicode:characters_to_list(Component), "/"],
+    {ok, Tags0} = call_api(Path),
+    Tags1 = jiffy:decode(Tags0),
+    not is_list(Tags1) andalso throw({invalid_component, Component, tags}),
+    Tags1.
 
-%% Will make a http get call to the diversiyt-api server provided in the sys.config.
--spec call_diversity_api(binary(), binary(), atom()) -> binary() | term() | map().
-call_diversity_api(Component, Tag, Action) ->
+call_api(Path) ->
     {ok, Url} = application:get_env(diversity, diversity_api_url),
     Opts = [{body_format, binary}],
-    Path = build_path(Component, Tag, Action),
-    Request = {lists:flatten([binary_to_list(Url) | Path]), []},
+    Request = {lists:flatten([unicode:characters_to_list(Url), Path]), []},
     case httpc:request(get, Request, [], Opts) of
         {ok, {{_Version, Status, _ReasonPhrase}, _Headers, Body}} ->
             case Status of
                 404 -> undefined;
                 500 -> throw(server_error);
-                _   ->
-                    Result = case Action of
-                                 {file, _} ->
-                                     Body;
-                                 tags ->
-                                     jiffy:decode(Body);
-                                 _ ->
-                                     %% Settings and diversity json
-                                     jiffy:decode(Body, [return_maps])
-                             end,
-                    {ok, Result}
+                200 -> {ok, Body}
             end
     end.
-
-build_path(Component, Tag, {file, File}) ->
-    ["/components/", binary_to_list(Component), "/", binary_to_list(Tag), "/files/",
-     binary_to_list(File)];
-build_path(Component, Tag, diversity_json) ->
-    ["/components/", binary_to_list(Component), "/", binary_to_list(Tag), "/"];
-build_path(Component, Tag, settings) ->
-    ["/components/", binary_to_list(Component), "/", binary_to_list(Tag), "/settings/"];
-build_path(Component, undefined, tags) ->
-    ["/components/", binary_to_list(Component), "/"].
-
--ifdef(TEST).
--include_lib("eunit/include/eunit.hrl").
-
-build_path_test() ->
-    %% Files
-    ?assertEqual(
-        ["/components/", "foobar", "/", "1.0.0", "/files/", "test.html"],
-        build_path(<<"foobar">>, <<"1.0.0">>, {file, <<"test.html">>})
-    ),
-    %% diversity json
-    ?assertEqual(
-        ["/components/", "foobar", "/", "1.0.0", "/"],
-        build_path(<<"foobar">>, <<"1.0.0">>, diversity_json)
-    ),
-    %% Settings
-    ?assertEqual(
-        ["/components/", "foobar", "/", "1.0.0", "/settings/"],
-        build_path(<<"foobar">>, <<"1.0.0">>, settings)
-    ),
-    %% Tags
-    ?assertEqual(["/components/", "foobar", "/"], build_path(<<"foobar">>, undefined, tags)).
-
--endif.
