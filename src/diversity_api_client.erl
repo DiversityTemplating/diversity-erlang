@@ -8,7 +8,7 @@
 -spec get_diversity_json(binary(), diversity_semver:semver()) -> {ok, map()} | undefined.
 get_diversity_json(Component, Version) ->
     Tag = diversity_semver:semver_to_binary(Version),
-    Path = ["/components/", unicode:characters_to_list(Component), "/", unicode:characters_to_list(Tag), "/"],
+    Path = ["components/", unicode:characters_to_list(Component), "/", unicode:characters_to_list(Tag), "/"],
     diversity_cache:get(
         {Component, Version, diversity_json},
         fun () ->
@@ -26,7 +26,7 @@ get_file(Component0, Version0, FilePath0) ->
     Component1 = unicode:characters_to_list(Component0),
     Version1 = unicode:characters_to_list(diversity_semver:semver_to_binary(Version0)),
     FilePath1 = unicode:characters_to_list(FilePath0),
-    Path = ["/components/", Component1, "/", Version1, "/files/", FilePath1],
+    Path = ["components/", Component1, "/", Version1, "/files/", FilePath1],
     diversity_cache:get(
         {Component0, Version0, FilePath0},
         fun () -> call_api(Path) end,
@@ -56,7 +56,7 @@ get_versions(Component) ->
 %%%%%%%%%%%%%%%%%%%%
 
 get_tags(Component) ->
-    Path = ["/components/", unicode:characters_to_list(Component), "/"],
+    Path = ["components/", unicode:characters_to_list(Component), "/"],
     {ok, Tags0} = call_api(Path),
     Tags1 = jiffy:decode(Tags0),
     not is_list(Tags1) andalso throw({invalid_component, Component, tags}),

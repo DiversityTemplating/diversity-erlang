@@ -22,11 +22,11 @@ handle(Req, State) ->
     catch
         throw:no_theme_found ->
             cowboy_req:reply(
-                500, [{<<"content-type">>, <<"text/plain">>}], <<"No theme found">>, Req
+                500, [{<<"content-type">>, <<"text/plain; charset=utf-8">>}], <<"No theme found">>, Req
             );
         throw:no_url_info ->
             cowboy_req:reply(
-                200, [{<<"content-type">>, <<"text/plain">>}], <<"No webshop found">>, Req
+                200, [{<<"content-type">>, <<"text/plain; charset=utf-8">>}], <<"No webshop found">>, Req
             )
 
     end.
@@ -52,30 +52,35 @@ handle_diversity_request(Req) ->
     {ok, DiversityURL} = application:get_env(diversity, diversity_api_url),
 
     Language = proplists:get_value(language, UrlInfo),
-    Context = #{<<"webshopUrl">> => proplists:get_value(webshop_url, UrlInfo),
-                <<"webshopUid">> => WebshopUid,
-                <<"apiUrl">>     => APIUrl,
-                <<"serveWithStyleUrl">> => <<DiversityURL/binary, $/>>},
+    Context0 = #{<<"webshopUrl">> => proplists:get_value(webshop_url, UrlInfo),
+                 <<"webshopUid">> => WebshopUid,
+                 <<"apiUrl">> => APIUrl,
+                 <<"serveWithStyleUrl">> => DiversityURL},
+    Context1 = case PreviewKey of
+        undefined -> Context0;
+        Auth      -> Context0#{<<"auth">> => Auth}
+    end,
     try
         lager:info("Building ~p ~s", [WebshopUid, proplists:get_value(webshop_url, UrlInfo)]),
         %% All good? Send to renderer and let the magic happen in a nice try block.
         Output = case application:get_env(diversity, verbose_log) of
             {ok, true} ->
                 {Time, Result} = timer:tc(diversity,
-                                          render, [maps:get(<<"params">>, Theme), Language, Context]),
+                                          render, [maps:get(<<"params">>, Theme), Language, Context1]),
                 lager:info("Rendering page took ~p", [Time]),
                 Result;
             _ ->
-               diversity:render(maps:get(<<"params">>, Theme), Language, Context)
+               diversity:render(maps:get(<<"params">>, Theme), Language, Context1)
         end,
+
         {ok, _} = cowboy_req:reply(
-            200, [{<<"content-type">>, <<"text/html">>}], Output, Req3
+            200, [{<<"content-type">>, <<"text/html; charset=utf-8">>}], Output, Req3
         )
     catch
         Class:Error ->
-            io:format("~p ~p ~n", [Class, Error]),
+            io:format("~p ~p ~p~n", [Class, Error, erlang:get_stacktrace()]),
             {ok, _} = cowboy_req:reply(
-                500, [{<<"content-type">>, <<"text/plain">>}], "Internal server error", Req3
+                500, [{<<"content-type">>, <<"text/plain; charset=utf-8">>}], "Internal server error", Req3
             )
     end,
     Req3.
