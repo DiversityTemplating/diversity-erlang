@@ -3,7 +3,7 @@ PROJECT = diversity
 DEPS = cowboy jiffy mustache.erl lager
 dep_cowboy = git https://github.com/ninenines/cowboy 1.0.1
 dep_jiffy = git https://github.com/davisp/jiffy.git master
-dep_mustache.erl = git https://github.com/Textalk/mustache.erl cleanup
+dep_mustache.erl = git https://github.com/Textalk/mustache.erl diversity-extensions
 dep_lager = git https://github.com/basho/lager.git master
 
 TEST_DEPS = meck
