@@ -10,12 +10,8 @@
         inets,
         ssl,
         jiffy,
-        lager,
-        cowboy,
         mustache
     ]},
     {mod, {diversity_app, []}},
-    {env, [{diversity_api_url, <<"https://api.diversity.io/">>},
-           {twapi_url, <<"shop.textalk.se/backend/jsonrpc/v1/">>},
-           {port, 8080}]}
+    {env, [{diversity_api_url, <<"https://api.diversity.io/">>}]}
 ]}.
