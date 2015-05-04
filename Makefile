@@ -1,7 +1,7 @@
 PROJECT = diversity
 
 
-DEPS = jiffy mustache.erl
+DEPS = mustache.erl jiffy
 dep_jiffy = git https://github.com/davisp/jiffy.git master
 dep_mustache.erl = git https://github.com/Textalk/mustache.erl diversity-extensions
 

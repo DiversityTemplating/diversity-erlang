@@ -9,8 +9,8 @@
         stdlib,
         inets,
         ssl,
-        jiffy,
-        mustache
+        mustache,
+        jiffy
     ]},
     {mod, {diversity_app, []}},
     {env, [{diversity_api_url, <<"https://api.diversity.io/">>}]}
