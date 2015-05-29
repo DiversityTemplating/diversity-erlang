@@ -304,14 +304,9 @@ load_component(Component, Version, Language) ->
                 <<"baseUrl">> => BaseURL},
 
     %% Retrive the template if it exist
-    Loaded1 = case maps:find(<<"template">>, Diversity) of
-                  {ok, TemplatePath} ->
-                      case diversity_api_client:get_file(Component, Version, TemplatePath) of
-                          {ok, Template} -> Loaded0#{<<"template">> => mustache:compile(Template)};
-                          undefined -> Loaded0
-                      end;
-                  error ->
-                      Loaded0
+    Loaded1 = case get_template_fun(Component, Version, Diversity) of
+                  undefined   -> Loaded0;
+                  TemplateFun -> Loaded0#{<<"template">> => TemplateFun}
               end,
 
     %% Retrive the translations if they exist
@@ -326,6 +321,24 @@ load_component(Component, Version, Language) ->
               end,
 
     {Component, Loaded2}.
+
+%% @doc Retrive a mustache render function if the component has a template set.
+get_template_fun(Component, Version, Diversity) ->
+    diversity_cache:get(
+      {mustache_template_fun, Component, Version},
+      fun () ->
+              case maps:find(<<"template">>, Diversity) of
+                  {ok, TemplatePath} ->
+                      case diversity_api_client:get_file(Component, Version, TemplatePath) of
+                          {ok, Template} -> mustache:compile(Template);
+                          undefined      -> undefined
+                      end;
+                  error ->
+                      undefined
+              end
+      end,
+      300000
+     ).
 
 %% @doc Given a map of constraints for components this function finds the best matching version for
 %% each of the components.
