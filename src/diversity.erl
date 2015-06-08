@@ -37,7 +37,7 @@ render(#{<<"component">> := Name, <<"settings">> := Settings0} = Parameters, Lan
 
     %% Render the top component specifically
     #{<<"diversity">> := #{<<"version">> := Version},
-      <<"template">>  := Render} = maps:get(Name, Components1),
+      <<"template">>  := Template} = maps:get(Name, Components1),
     MustacheContext0 = render_context(Name, Version, Language, Settings1, Context),
 
     %% Retrive the data from all components that is needed to render the top-component
@@ -56,7 +56,7 @@ render(#{<<"component">> := Name, <<"settings">> := Settings0} = Parameters, Lan
                                          <<"angularBootstrap">> => AngularBootstrap},
 
     %% Do the actual rendering
-    Render(MustacheContext1).
+    mustache:render(Template, MustacheContext1).
 
 %% @doc Accumulate all the data from the components into their specific parts (like all scripts by
 %% themselves and css by themselves etc).
