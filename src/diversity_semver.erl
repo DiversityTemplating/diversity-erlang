@@ -36,7 +36,9 @@ constraint_fun(<<"^", VersionBin/binary>>) ->
             fun ({Major, Minor, Patch}) ->
                 Major =:= Major0 andalso {Minor, Patch} >= {Minor0, Patch0}
             end
-    end.
+    end;
+constraint_fun(VersionBin) ->
+    constraint_fun(<<"^", VersionBin/binary>>).
 
 %% @doc Retrive the latest version according to the given comparsion function
 find_latest_version(Versions) ->
