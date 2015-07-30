@@ -18,11 +18,12 @@
 %%   the key <<"componentHTML">> if a template exists with the correct mustache context.
 %% - After the parameter map has been rendered then we render the top-component using the
 %%   accumulated data (translations, scripts, styles etc.).
-render(#{<<"component">> := Name, <<"settings">> := Settings0} = Parameters, Language, Context) ->
+render(#{<<"component">> := Name, <<"settings">> := Settings0} = Parameters, Language, Context0) ->
     {ok, DiversityURL} = application:get_env(diversity, diversity_api_url),
 
     %% If we override it in the Context, we use that diversity_api url instead.
-    DiversityURL1 = maps:get(diversity_api_url, Context, DiversityURL),
+    DiversityURL1 = maps:get(diversity_api_url, Context0, DiversityURL),
+    Context1      = maps:remove(diversity_api_url, Context0),
 
     LoadComponent = fun ({ComponentName, Version}) ->
                             load_component(ComponentName, Version, Language, DiversityURL1)
@@ -38,12 +39,12 @@ render(#{<<"component">> := Name, <<"settings">> := Settings0} = Parameters, Lan
     AllComponentsList = DependencyList ++ ComponentList,
 
     %% Render the sub-components
-    Settings1 = map(render_fun(Components1, Language, Context), Settings0),
+    Settings1 = map(render_fun(Components1, Language, Context1), Settings0),
 
     %% Render the top component specifically
     #{<<"diversity">> := #{<<"version">> := Version},
       <<"template">>  := Template} = maps:get(Name, Components1),
-    MustacheContext0 = render_context(Name, Version, Language, Settings1, Context),
+    MustacheContext0 = render_context(Name, Version, Language, Settings1, Context1),
 
     %% Retrive the data from all components that is needed to render the top-component
     {L10n, Scripts, Styles, Modules} = get_components_data(AllComponentsList, Components1),
