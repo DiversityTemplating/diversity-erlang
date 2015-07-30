@@ -58,14 +58,14 @@ get_versions(Component, DiversityURL) ->
 
 get_tags(Component, DiversityURL) ->
     Path = ["components/", unicode:characters_to_list(Component), "/"],
-    {ok, Tags0} = call_api(Path, DiversityURL),
+    {ok, Tags0} = call_api(DiversityURL, Path),
     Tags1 = jiffy:decode(Tags0),
     not is_list(Tags1) andalso throw({invalid_component, Component, tags}),
     Tags1.
 
-call_api(Url, Path) ->
+call_api(URL, Path) ->
     Opts = [{body_format, binary}],
-    Request = {lists:flatten([unicode:characters_to_list(Url), Path]), []},
+    Request = {lists:flatten([unicode:characters_to_list(URL), Path]), []},
     case httpc:request(get, Request, [], Opts) of
         {ok, {{_Version, Status, _ReasonPhrase}, _Headers, Body}} ->
             case Status of
