@@ -19,15 +19,20 @@
 %% - After the parameter map has been rendered then we render the top-component using the
 %%   accumulated data (translations, scripts, styles etc.).
 render(#{<<"component">> := Name, <<"settings">> := Settings0} = Parameters, Language, Context) ->
-    LoadComponent = fun ({ComponentName, Version}) ->
-                            load_component(ComponentName, Version, Language)
-                    end,
+    {ok, DiversityURL} = application:get_env(diversity, diversity_api_url),
 
+    %% If we override it in the Context, we use that diversity_api url instead.
+    DiversityURL1 = maps:get(diversity_api_url, Context, DiversityURL),
+
+    LoadComponent = fun ({ComponentName, Version}) ->
+                            load_component(ComponentName, Version, Language, DiversityURL1)
+                    end,
     %% Retrive a list of all components in the parameters
-    {ComponentList, Components0} = get_components(LoadComponent, Parameters),
+    {ComponentList, Components0} = get_components(LoadComponent, Parameters, DiversityURL1),
 
     %% Retrive a list of all components dependencies
-    {DependencyList, Components1} = get_dependencies(LoadComponent, ComponentList, Components0),
+    {DependencyList, Components1} = get_dependencies(LoadComponent, ComponentList, Components0,
+                                                     DiversityURL1),
 
     %% Concatenate the components from the parameters and the dependencies
     AllComponentsList = DependencyList ++ ComponentList,
@@ -131,7 +136,7 @@ build_url(_BaseURL, <<"https://", _/binary>> = URL) -> URL;
 build_url(BaseURL, Path)                            -> <<BaseURL/binary, "files/", Path/binary>>.
 
 %% @doc Get components which are referenced in the given parameters map and resolve their versions.
-get_components(LoadComponent, Parameters) ->
+get_components(LoadComponent, Parameters, DiversityURL) ->
     %% Find all components and their constraints (bottom-first)
     {ComponentAcc, ComponentConstraints} = fold(fun add_constraint/2, {[], #{}}, Parameters),
 
@@ -139,7 +144,7 @@ get_components(LoadComponent, Parameters) ->
     ComponentList = lists:reverse(ComponentAcc),
 
     %% Resolve the correct version of the components
-    ComponentVersions = resolve_versions(ComponentConstraints),
+    ComponentVersions = resolve_versions(ComponentConstraints, DiversityURL),
 
     %% Load all components concurrently
     Components = maps:from_list(pmap(LoadComponent, maps:to_list(ComponentVersions))),
@@ -170,14 +175,14 @@ add_constraint(Name, Constraint, {ComponentList0, Components0}) ->
     end.
 
 %% @doc Retrive all dependencies for the given components (recursively)
-get_dependencies(LoadComponent, ComponentList, Components) ->
-    get_dependencies(LoadComponent, ComponentList, Components, []).
+get_dependencies(LoadComponent, ComponentList, Components, DiversityURL) ->
+    get_dependencies(LoadComponent, ComponentList, Components, DiversityURL, []).
 
 %% @doc Recursively retrive all dependencies
-get_dependencies(_LoadComponent, [], Components, Acc) ->
+get_dependencies(_LoadComponent, [], Components, _DiversityURL, Acc) ->
     %% No more dependencies to get
     {Acc, Components};
-get_dependencies(LoadComponent, ComponentList, Components0, Acc) ->
+get_dependencies(LoadComponent, ComponentList, Components0, DiversityURL, Acc) ->
     %% Retrive all the dependencies constraints and the order they should be loaded
     {_, {DependencyAcc, DependencyConstraints}} = lists:foldl(
                                                         fun get_dependency/2,
@@ -188,7 +193,7 @@ get_dependencies(LoadComponent, ComponentList, Components0, Acc) ->
     DependencyList = lists:reverse(DependencyAcc),
 
     %% Resolve the correct version of the dependencies
-    DependencyVersions = resolve_versions(DependencyConstraints),
+    DependencyVersions = resolve_versions(DependencyConstraints, DiversityURL),
 
     %% Load all dependencies concurrently
     Dependencies = maps:from_list(pmap(LoadComponent, maps:to_list(DependencyVersions))),
@@ -263,8 +268,10 @@ render_fun(Components, Language, Context) ->
 %% @doc Create a base mustache context using the given parameters
 render_context(Name, Version, Language, Settings, Context) ->
     {ok, DiversityURL} = application:get_env(diversity, diversity_api_url),
+    %% If we override it in the Context, we use that diversity_api url instead.
+    DiversityURL1 = maps:get(diversity_api_url, Context, DiversityURL),
     VersionBin = diversity_semver:semver_to_binary(Version),
-    BaseURL = <<DiversityURL/binary, "components/", Name/binary, "/", VersionBin/binary, "/files/">>,
+    BaseURL = <<DiversityURL1/binary, "components/", Name/binary, "/", VersionBin/binary, "/files/">>,
 
     %% Encode the settings as a JSON-blob (with escaped script tags)
     SettingsJSON = re:replace(
@@ -292,19 +299,18 @@ render_context(Name, Version, Language, Settings, Context) ->
 %% - diversity.json
 %% - mustache template (if it exists)
 %% - translations (for given language, if it exists)
-load_component(Component, Version, Language) ->
+load_component(Component, Version, Language, DiversityURL) ->
     %% Build the components base URL
-    {ok, DiversityURL} = application:get_env(diversity, diversity_api_url),
     VersionBin = diversity_semver:semver_to_binary(Version),
     BaseURL = <<DiversityURL/binary, "components/", Component/binary, $/, VersionBin/binary, $/>>,
 
     %% Retrive the diversity.json
-    Diversity = diversity_api_client:get_diversity_json(Component, Version),
+    Diversity = diversity_api_client:get_diversity_json(Component, Version, DiversityURL),
     Loaded0 = #{<<"diversity">> => Diversity#{<<"version">> => Version},
                 <<"baseUrl">> => BaseURL},
 
     %% Retrive the template if it exist
-    Loaded1 = case get_template_fun(Component, Version, Diversity) of
+    Loaded1 = case get_template_fun(Component, Version, Diversity, DiversityURL) of
                   undefined   -> Loaded0;
                   TemplateFun -> Loaded0#{<<"template">> => TemplateFun}
               end,
@@ -312,7 +318,8 @@ load_component(Component, Version, Language) ->
     %% Retrive the translations if they exist
     Loaded2 = case maps:find(Language, maps:get(<<"i18n">>, Diversity, #{})) of
                   {ok, #{<<"view">> := TranslationPath}} ->
-                      case diversity_api_client:get_file(Component, Version, TranslationPath) of
+                      case diversity_api_client:get_file(Component, Version, TranslationPath,
+                                                         DiversityURL) of
                           {ok, Translation} -> Loaded1#{<<"translation">> => Translation};
                           undefined -> Loaded1
                       end;
@@ -323,13 +330,14 @@ load_component(Component, Version, Language) ->
     {Component, Loaded2}.
 
 %% @doc Retrive a mustache render function if the component has a template set.
-get_template_fun(Component, Version, Diversity) ->
+get_template_fun(Component, Version, Diversity, DiversityURL) ->
     diversity_cache:get(
       {mustache_template_fun, Component, Version},
       fun () ->
               case maps:find(<<"template">>, Diversity) of
                   {ok, TemplatePath} ->
-                      case diversity_api_client:get_file(Component, Version, TemplatePath) of
+                      case diversity_api_client:get_file(Component, Version, TemplatePath,
+                                                         DiversityURL) of
                           {ok, Template} -> mustache:compile(Template);
                           undefined      -> undefined
                       end;
@@ -342,10 +350,11 @@ get_template_fun(Component, Version, Diversity) ->
 
 %% @doc Given a map of constraints for components this function finds the best matching version for
 %% each of the components.
-resolve_versions(ComponentConstraints) ->
+resolve_versions(ComponentConstraints, DiversityURL) ->
     maps:map(
         fun (Name, Constraints) ->
-            case diversity_semver:resolve_version(Name, Constraints) of
+            Versions = diversity_api_client:get_versions(Name, DiversityURL),
+            case diversity_semver:resolve_version(Constraints, Versions) of
                 undefined ->
                     lager:warning(
                         "Could not resolve version for component ~p~nConstraints: ~p~n",

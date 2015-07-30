@@ -9,8 +9,7 @@ check_constraint(Version, Constraint) ->
     Check = constraint_fun(Constraint),
     Check(Version).
 
-resolve_version(Name, Constraints) ->
-    Versions0 = diversity_api_client:get_versions(Name),
+resolve_version(Constraints, Versions0) ->
     Versions1 = filter_constraints(Constraints, Versions0),
     find_latest_version(Versions1).
 
