@@ -201,7 +201,7 @@ get_dependencies(LoadComponent, ComponentList, Components0, DiversityURL, Acc) -
     %% Combine results so far
     {Components1, NewAcc} = {maps:merge(Dependencies, Components0), DependencyList ++ Acc},
 
-    get_dependencies(LoadComponent, DependencyList, Components1, NewAcc).
+    get_dependencies(LoadComponent, DependencyList, Components1, DiversityURL, NewAcc).
 
 %% @doc For a given component accumulate it's dependencies version constraints. If the dependency
 %% has already been resolved then check that the constraint is satisfied.
