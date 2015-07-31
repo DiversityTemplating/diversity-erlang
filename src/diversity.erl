@@ -4,6 +4,9 @@
 
 -include_lib("eunit/include/eunit.hrl").
 
+-define(?COMPONENT_TEMPLATE_CACHE, (application:get_env(diversity,
+                                                        component_template_cache, 30000))).
+
 %% @doc Render a diversity component with a given context
 %% This is the top-level entry point for rendering a diversity template.
 %%
@@ -346,7 +349,7 @@ get_template_fun(Component, Version, Diversity, DiversityURL) ->
                       undefined
               end
       end,
-      300000
+      ?COMPONENT_TEMPLATE_CACHE()
      ).
 
 %% @doc Given a map of constraints for components this function finds the best matching version for
