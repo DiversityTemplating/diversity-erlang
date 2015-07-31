@@ -3,7 +3,7 @@
 -export([get_diversity_json/3, get_file/4, get_tags/2, get_versions/2]).
 
 -define(RESOURCE_CACHE_TIME(),
-        (application:get_env(divapi, resource_cache_time, 1000 * 60 * 60 * 1))).
+        (application:get_env(diversity, resource_cache_time, 1000 * 60 * 60 * 1))).
 
 %% @doc Fetches the diversity json for a specific Component and Tag
 -spec get_diversity_json(binary(), diversity_semver:semver(), binary()) -> {ok, map()} | undefined.
