@@ -1,11 +1,9 @@
 -module(diversity).
 
--export([render/3]).
+-export([render/4]).
 
 -include_lib("eunit/include/eunit.hrl").
 
--define(COMPONENT_TEMPLATE_CACHE(),
-        (application:get_env(diversity, component_template_cache, 30000))).
 %% @doc Render a diversity component with a given context
 %% This is the top-level entry point for rendering a diversity template.
 %%
@@ -20,33 +18,28 @@
 %%   the key <<"componentHTML">> if a template exists with the correct mustache context.
 %% - After the parameter map has been rendered then we render the top-component using the
 %%   accumulated data (translations, scripts, styles etc.).
-render(#{<<"component">> := Name, <<"settings">> := Settings0} = Parameters, Language, Context0) ->
-    {ok, DiversityURL} = application:get_env(diversity, diversity_api_url),
-
-    %% If we override it in the Context, we use that diversity_api url instead.
-    DiversityURL1 = maps:get(diversity_api_url, Context0, DiversityURL),
-    Context1      = maps:remove(diversity_api_url, Context0),
-
+render(#{<<"component">> := Name, <<"settings">> := Settings0} = Parameters, Language, Context,
+       DiversityURL) ->
     LoadComponent = fun ({ComponentName, Version}) ->
-                            load_component(ComponentName, Version, Language, DiversityURL1)
+                            load_component(ComponentName, Version, Language, DiversityURL)
                     end,
     %% Retrive a list of all components in the parameters
-    {ComponentList, Components0} = get_components(LoadComponent, Parameters, DiversityURL1),
+    {ComponentList, Components0} = get_components(LoadComponent, Parameters, DiversityURL),
 
     %% Retrive a list of all components dependencies
     {DependencyList, Components1} = get_dependencies(LoadComponent, ComponentList, Components0,
-                                                     DiversityURL1),
+                                                     DiversityURL),
 
     %% Concatenate the components from the parameters and the dependencies
     AllComponentsList = DependencyList ++ ComponentList,
 
     %% Render the sub-components
-    Settings1 = map(render_fun(Components1, Language, Context1), Settings0),
+    Settings1 = map(render_fun(Components1, Language, Context, DiversityURL), Settings0),
 
     %% Render the top component specifically
     #{<<"diversity">> := #{<<"version">> := Version},
       <<"template">>  := Template} = maps:get(Name, Components1),
-    MustacheContext0 = render_context(Name, Version, Language, Settings1, Context1),
+    MustacheContext0 = render_context(Name, Version, Language, Settings1, Context, DiversityURL),
 
     %% Retrive the data from all components that is needed to render the top-component
     {L10n, Scripts, Styles, Modules} = get_components_data(AllComponentsList, Components1),
@@ -89,54 +82,54 @@ get_components_data(AllComponentsList, Components) ->
 
 %% @doc Get the needed data for a specfic component
 get_component_data(Name, {Components, {L10n0, Scripts0, Styles0, Modules0}}) ->
-        %% Get the diversity.json and the components baseUrl
-        #{<<"baseUrl">>   := BaseURL,
-          <<"diversity">> := Diversity} = Component = maps:get(Name, Components),
+    %% Get the diversity.json and the components baseUrl
+    #{<<"baseUrl">>   := BaseURL,
+      <<"diversity">> := Diversity} = Component = maps:get(Name, Components),
 
-        %% Check if the component has any translations
-        L10n1 = case maps:find(<<"translation">>, Component) of
-                    {ok, Translation} ->
-                        [#{<<"component">> => Name,
-                           <<"messages">>  => Translation}
-                         | L10n0];
-                    error ->
-                        L10n0
-                end,
+    %% Check if the component has any translations
+    L10n1 = case maps:find(<<"translation">>, Component) of
+                {ok, Translation} ->
+                    [#{<<"component">> => Name,
+                       <<"messages">>  => Translation}
+                     | L10n0];
+                error ->
+                    L10n0
+            end,
 
-        %% Check if the component has any javascripts
-        Scripts1 = case maps:find(<<"script">>, Diversity) of
-                       {ok, Script} when is_binary(Script) ->
-                           [[build_url(BaseURL, Script)] | Scripts0];
-                       {ok, Scripts} when is_list(Scripts) ->
-                           [[build_url(BaseURL, Script) || Script <- Scripts] | Scripts0];
-                       error ->
-                           Scripts0
-                   end,
+    %% Check if the component has any javascripts
+    Scripts1 = case maps:find(<<"script">>, Diversity) of
+                   {ok, Script} when is_binary(Script) ->
+                       [[build_url(BaseURL, Script)] | Scripts0];
+                   {ok, Scripts} when is_list(Scripts) ->
+                       [[build_url(BaseURL, Script) || Script <- Scripts] | Scripts0];
+                   error ->
+                       Scripts0
+               end,
 
-        %% Check if the component has any (s)css files
-        Styles1 = case maps:find(<<"style">>, Diversity) of
-                      {ok, Style} when is_binary(Style) ->
-                          [[build_url(BaseURL, Style)] | Styles0];
-                      {ok, Styles} when is_list(Styles) ->
-                          [[build_url(BaseURL, Style) || Style <- Styles] | Styles0];
-                      error ->
-                          Styles0
-                  end,
+    %% Check if the component has any (s)css files
+    Styles1 = case maps:find(<<"style">>, Diversity) of
+                  {ok, Style} when is_binary(Style) ->
+                      [[build_url(BaseURL, Style)] | Styles0];
+                  {ok, Styles} when is_list(Styles) ->
+                      [[build_url(BaseURL, Style) || Style <- Styles] | Styles0];
+                  error ->
+                      Styles0
+              end,
 
-        %% Check if the component has any angular modules
-        Modules1 = case maps:find(<<"angular">>, Diversity) of
-                       {ok, Module} -> [Module | Modules0];
-                       error        -> Modules0
-                   end,
+    %% Check if the component has any angular modules
+    Modules1 = case maps:find(<<"angular">>, Diversity) of
+                   {ok, Module} -> [Module | Modules0];
+                   error        -> Modules0
+               end,
 
-        {Components, {L10n1, Scripts1, Styles1, Modules1}}.
+    {Components, {L10n1, Scripts1, Styles1, Modules1}}.
 
 %% @doc Build the URL for a file IF it is "local" i.e. a file in a diversity components repository.
 %% If the path given is for a remote address then leave it be as is.
 build_url(_BaseURL, <<"//", _/binary>>       = URL) -> URL;
 build_url(_BaseURL, <<"http://", _/binary>>  = URL) -> URL;
 build_url(_BaseURL, <<"https://", _/binary>> = URL) -> URL;
-build_url(BaseURL, Path)                            -> <<BaseURL/binary, "files/", Path/binary>>.
+build_url(BaseURL, Path)                            -> filename:join([BaseURL, <<"files">>, Path]).
 
 %% @doc Get components which are referenced in the given parameters map and resolve their versions.
 get_components(LoadComponent, Parameters, DiversityURL) ->
@@ -188,10 +181,10 @@ get_dependencies(_LoadComponent, [], Components, _DiversityURL, Acc) ->
 get_dependencies(LoadComponent, ComponentList, Components0, DiversityURL, Acc) ->
     %% Retrive all the dependencies constraints and the order they should be loaded
     {_, {DependencyAcc, DependencyConstraints}} = lists:foldl(
-                                                        fun get_dependency/2,
-                                                        {Components0, {[], #{}}},
-                                                        ComponentList
-                                                    ),
+                                                    fun get_dependency/2,
+                                                    {Components0, {[], #{}}},
+                                                    ComponentList
+                                                   ),
     %% Reverse the accumulator
     DependencyList = lists:reverse(DependencyAcc),
 
@@ -228,7 +221,7 @@ get_dependency(Name, {Components, Acc0}) ->
                                  "Incompatible versions for component.~n"
                                  "Component: ~p ~p~n"
                                  "Dependency: ~p ~p~n"
-                                 "Constraint: ~p~n",
+                                 "Constraint: ~p",
                                  [Name, Version, Dependency, Version, Constraint]
                                 )
                        end,
@@ -244,19 +237,19 @@ get_dependency(Name, {Components, Acc0}) ->
       )}.
 
 %% @doc Create a map-function that renders all sub-components in the parameters tree
-render_fun(Components, Language, Context) ->
+render_fun(Components, Language, Context, DiversityURL) ->
     fun (#{<<"component">> := Name} = Component0) ->
             %% Default to an empty map as settings
             Settings = maps:get(<<"settings">>, Component0, #{}),
 
             %% Render HTML if a template exist
             Component1 = case maps:find(Name, Components) of
-                             {ok, #{<<"template">> := Template, <<"diversity">> := Diversity}} ->
-                                 #{<<"version">> := Version} = Diversity,
+                             {ok, #{<<"template">> := Template,
+                                    <<"diversity">> := #{<<"version">> := Version}}} ->
 
                                  %% Create a mustache context
                                  MustacheContext = render_context(Name, Version, Language, Settings,
-                                                                  Context),
+                                                                  Context, DiversityURL),
 
                                  %% Render the sub-component
                                  ComponentHTML = mustache:render(Template, MustacheContext),
@@ -269,12 +262,9 @@ render_fun(Components, Language, Context) ->
     end.
 
 %% @doc Create a base mustache context using the given parameters
-render_context(Name, Version, Language, Settings, Context) ->
-    {ok, DiversityURL} = application:get_env(diversity, diversity_api_url),
-    %% If we override it in the Context, we use that diversity_api url instead.
-    DiversityURL1 = maps:get(diversity_api_url, Context, DiversityURL),
-    VersionBin = diversity_semver:semver_to_binary(Version),
-    BaseURL = <<DiversityURL1/binary, "components/", Name/binary, "/", VersionBin/binary, "/files/">>,
+render_context(Name, Version, Language, Settings, Context, DiversityURL) ->
+    Tag = diversity_semver:semver_to_binary(Version),
+    BaseURL = filename:join([DiversityURL, <<"components">>, Name, Tag, <<"files">>]),
 
     %% Encode the settings as a JSON-blob (with escaped script tags)
     SettingsJSON = re:replace(
@@ -285,9 +275,8 @@ render_context(Name, Version, Language, Settings, Context) ->
                     ),
 
     %% The language substitution fun
-    Lang = fun (Text) ->
-                   re:replace(Text, <<"lang">>, Language, [global, unicode, {return, binary}])
-           end,
+    ReOptions = [global, unicode, {return, binary}],
+    Lang = fun (Text) -> re:replace(Text, <<"lang">>, Language, ReOptions) end,
 
     %% The mustache context
     #{<<"baseUrl">>      => BaseURL,
@@ -308,7 +297,7 @@ load_component(Component, Version, Language, DiversityURL) ->
     BaseURL = <<DiversityURL/binary, "components/", Component/binary, $/, VersionBin/binary, $/>>,
 
     %% Retrive the diversity.json
-    Diversity = diversity_api_client:get_diversity_json(Component, Version, DiversityURL),
+    Diversity = diversity_api:get_diversity_json(Component, Version, DiversityURL),
     Loaded0 = #{<<"diversity">> => Diversity#{<<"version">> => Version},
                 <<"baseUrl">> => BaseURL},
 
@@ -320,9 +309,8 @@ load_component(Component, Version, Language, DiversityURL) ->
 
     %% Retrive the translations if they exist
     Loaded2 = case maps:find(Language, maps:get(<<"i18n">>, Diversity, #{})) of
-                  {ok, #{<<"view">> := TranslationPath}} ->
-                      case diversity_api_client:get_file(Component, Version, TranslationPath,
-                                                         DiversityURL) of
+                  {ok, #{<<"view">> := Path}} ->
+                      case diversity_api:get_file(Component, Version, Path, DiversityURL) of
                           {ok, Translation} -> Loaded1#{<<"translation">> => Translation};
                           undefined -> Loaded1
                       end;
@@ -339,8 +327,7 @@ get_template_fun(Component, Version, Diversity, DiversityURL) ->
       fun () ->
               case maps:find(<<"template">>, Diversity) of
                   {ok, TemplatePath} ->
-                      case diversity_api_client:get_file(Component, Version, TemplatePath,
-                                                         DiversityURL) of
+                      case diversity_api:get_file(Component, Version, TemplatePath, DiversityURL) of
                           {ok, Template} -> mustache:compile(Template);
                           undefined      -> undefined
                       end;
@@ -348,28 +335,30 @@ get_template_fun(Component, Version, Diversity, DiversityURL) ->
                       undefined
               end
       end,
-      ?COMPONENT_TEMPLATE_CACHE()
+      application:get_env(diversity, component_template_cache, 30000)
      ).
 
 %% @doc Given a map of constraints for components this function finds the best matching version for
 %% each of the components.
 resolve_versions(ComponentConstraints, DiversityURL) ->
     maps:map(
-        fun (Name, Constraints) ->
-            Versions = diversity_api_client:get_versions(Name, DiversityURL),
-            case diversity_semver:resolve_version(Constraints, Versions) of
-                undefined ->
-                    lager:warning(
-                        "Could not resolve version for component ~p~nConstraints: ~p~n",
+      fun (Name, Constraints) ->
+              Versions = diversity_api:get_versions(Name, DiversityURL),
+              case diversity_semver:resolve_version(Constraints, Versions) of
+                  undefined ->
+                      lager:warning(
+                        "Could not resolve version for component.~n"
+                        "Component: ~p~n"
+                        "Constraints: ~p",
                         [Name, Constraints]
-                    ),
-                    '*';
-                Version ->
-                    Version
-            end
-        end,
-        ComponentConstraints
-    ).
+                       ),
+                      '*';
+                  Version ->
+                      Version
+              end
+      end,
+      ComponentConstraints
+     ).
 
 %% @doc Map a function over a tree (of maps and lists) where the nodes might be components.
 %% This is a bottom-first traversal. A component is naively identified by having the key
@@ -411,13 +400,13 @@ pmap(Fun, List, Timeout) ->
 
     %% Await results
     ReceiveFun = fun ({Pid, Reference}) ->
-                     receive
-                         {Pid, Result} ->
-                             Result;
-                         {'DOWN', Reference, process, Pid, Reason} ->
-                             error({pmap, Pid, Reason})
-                     after Timeout ->
-                               error({pmap, Pid, timeout})
-                     end
+                         receive
+                             {Pid, Result} ->
+                                 Result;
+                             {'DOWN', Reference, process, Pid, Reason} ->
+                                 error({pmap, Pid, Reason})
+                         after Timeout ->
+                                   error({pmap, Pid, timeout})
+                         end
                  end,
     lists:map(ReceiveFun, Processes).
