@@ -20,6 +20,7 @@
 %%   accumulated data (translations, scripts, styles etc.).
 render(#{<<"component">> := Name, <<"settings">> := Settings0} = Parameters, Language, Context,
        DiversityURL) ->
+    lager:debug("DIVERSITYURL: ~s", [DiversityURL]),
     LoadComponent = fun ({ComponentName, Version}) ->
                             load_component(ComponentName, Version, Language, DiversityURL)
                     end,
@@ -85,7 +86,7 @@ get_component_data(Name, {Components, {L10n0, Scripts0, Styles0, Modules0}}) ->
     %% Get the diversity.json and the components baseUrl
     #{<<"baseUrl">>   := BaseURL,
       <<"diversity">> := Diversity} = Component = maps:get(Name, Components),
-
+    lager:debug("BASEURL: ~s", [BaseURL]),
     %% Check if the component has any translations
     L10n1 = case maps:find(<<"translation">>, Component) of
                 {ok, Translation} ->
@@ -126,10 +127,10 @@ get_component_data(Name, {Components, {L10n0, Scripts0, Styles0, Modules0}}) ->
 
 %% @doc Build the URL for a file IF it is "local" i.e. a file in a diversity components repository.
 %% If the path given is for a remote address then leave it be as is.
-build_url(_BaseURL, <<"//", _/binary>>       = URL) -> URL;
-build_url(_BaseURL, <<"http://", _/binary>>  = URL) -> URL;
+build_url(_BaseURL, <<"//", _/binary>> = URL) -> URL;
+build_url(_BaseURL, <<"http://", _/binary>> = URL) -> URL;
 build_url(_BaseURL, <<"https://", _/binary>> = URL) -> URL;
-build_url(BaseURL, Path)                            -> filename:join([BaseURL, <<"files">>, Path]).
+build_url(BaseURL, Path) -> <<BaseURL/binary, (filename:join(<<"/files">>, Path))/binary>>.
 
 %% @doc Get components which are referenced in the given parameters map and resolve their versions.
 get_components(LoadComponent, Parameters, DiversityURL) ->
@@ -264,7 +265,10 @@ render_fun(Components, Language, Context, DiversityURL) ->
 %% @doc Create a base mustache context using the given parameters
 render_context(Name, Version, Language, Settings, Context, DiversityURL) ->
     Tag = diversity_semver:semver_to_binary(Version),
-    BaseURL = filename:join([DiversityURL, <<"components">>, Name, Tag, <<"files">>]),
+    BaseURL = <<
+                DiversityURL/binary,
+                (filename:join([<<"/components">>, Name, Tag, <<"files">>]))/binary
+              >>,
 
     %% Encode the settings as a JSON-blob (with escaped script tags)
     SettingsJSON = re:replace(
