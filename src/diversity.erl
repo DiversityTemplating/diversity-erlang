@@ -20,7 +20,6 @@
 %%   accumulated data (translations, scripts, styles etc.).
 render(#{<<"component">> := Name, <<"settings">> := Settings0} = Parameters, Language, Context,
        DiversityURL) ->
-    lager:debug("DIVERSITYURL: ~s", [DiversityURL]),
     LoadComponent = fun ({ComponentName, Version}) ->
                             load_component(ComponentName, Version, Language, DiversityURL)
                     end,
@@ -38,8 +37,7 @@ render(#{<<"component">> := Name, <<"settings">> := Settings0} = Parameters, Lan
     Settings1 = map(render_fun(Components1, Language, Context, DiversityURL), Settings0),
 
     %% Render the top component specifically
-    #{<<"diversity">> := #{<<"version">> := Version},
-      <<"template">>  := Template} = maps:get(Name, Components1),
+    #{<<"diversity">> := #{<<"version">> := Version} = Diversity} = maps:get(Name, Components1),
     MustacheContext0 = render_context(Name, Version, Language, Settings1, Context, DiversityURL),
 
     %% Retrive the data from all components that is needed to render the top-component
@@ -58,7 +56,7 @@ render(#{<<"component">> := Name, <<"settings">> := Settings0} = Parameters, Lan
                                          <<"angularBootstrap">> => AngularBootstrap},
 
     %% Do the actual rendering
-    mustache:render(Template, MustacheContext1).
+    mustache:render(get_template_fun(Name, Version, Diversity, DiversityURL), MustacheContext1).
 
 %% @doc Accumulate all the data from the components into their specific parts (like all scripts by
 %% themselves and css by themselves etc).
@@ -86,7 +84,6 @@ get_component_data(Name, {Components, {L10n0, Scripts0, Styles0, Modules0}}) ->
     %% Get the diversity.json and the components baseUrl
     #{<<"baseUrl">>   := BaseURL,
       <<"diversity">> := Diversity} = Component = maps:get(Name, Components),
-    lager:debug("BASEURL: ~s", [BaseURL]),
     %% Check if the component has any translations
     L10n1 = case maps:find(<<"translation">>, Component) of
                 {ok, Translation} ->
@@ -267,7 +264,7 @@ render_context(Name, Version, Language, Settings, Context, DiversityURL) ->
     Tag = diversity_semver:semver_to_binary(Version),
     BaseURL = <<
                 DiversityURL/binary,
-                (filename:join([<<"/components">>, Name, Tag, <<"files">>]))/binary
+                (filename:join([<<"components">>, Name, Tag, <<"files">>]))/binary
               >>,
 
     %% Encode the settings as a JSON-blob (with escaped script tags)
@@ -297,8 +294,8 @@ render_context(Name, Version, Language, Settings, Context, DiversityURL) ->
 %% - translations (for given language, if it exists)
 load_component(Component, Version, Language, DiversityURL) ->
     %% Build the components base URL
-    VersionBin = diversity_semver:semver_to_binary(Version),
-    BaseURL = <<DiversityURL/binary, "components/", Component/binary, $/, VersionBin/binary, $/>>,
+    Tag = diversity_semver:semver_to_binary(Version),
+    BaseURL = <<DiversityURL/binary, (filename:join([<<"components">>, Component, Tag]))/binary>>,
 
     %% Retrive the diversity.json
     Diversity = diversity_api:get_diversity_json(Component, Version, DiversityURL),

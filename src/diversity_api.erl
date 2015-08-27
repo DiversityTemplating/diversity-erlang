@@ -58,7 +58,7 @@ get_tags(Component, DiversityURL) ->
 
 call_api(URL, Path) ->
     Opts = [{body_format, binary}],
-    Request = {unicode:characters_to_list(<<URL/binary, $/, Path/binary>>), []},
+    Request = {unicode:characters_to_list(<<URL/binary, Path/binary>>), []},
     case httpc:request(get, Request, [], Opts) of
         {ok, {{_Version, Status, _ReasonPhrase}, _Headers, Body}} ->
             case Status of
