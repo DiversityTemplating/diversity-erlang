@@ -252,8 +252,8 @@ render_fun(Components, Language, Context, DiversityURL) ->
                                  %% Render the sub-component
                                  ComponentHTML = mustache:render(Template, MustacheContext),
                                  Component0#{<<"componentHTML">> => ComponentHTML};
-                             error ->
-                                 Component0#{<<"componentHTML">> => <<>>}
+                             _ ->
+                                 Component0
                          end,
             %% Remove the settings map since it's no longer needed
             maps:remove(<<"settings">>, Component1)
