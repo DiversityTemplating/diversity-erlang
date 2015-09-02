@@ -7,3 +7,4 @@ deps/
 *.beam
 relx
 .erlang.mk*
+erl_crash.dump
