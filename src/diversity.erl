@@ -336,7 +336,7 @@ get_template_fun(Component, Version, Diversity, DiversityURL) ->
                       undefined
               end
       end,
-      application:get_env(diversity, component_template_cache, 30000)
+      application:get_env(diversity, resource_cache_time, 3600000)
      ).
 
 %% @doc Given a map of constraints for components this function finds the best matching version for
