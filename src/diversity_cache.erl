@@ -24,6 +24,8 @@
 
 %% @doc Get a value from the cache if it exists, otherwise compute it
 %% and send the value to the cache.
+get(_Key, Fun, 0) ->
+    Fun();
 get(Key, Fun, Timeout) ->
     case ets:lookup(?CACHE, Key) of
         %% The file does not exist in the cache
