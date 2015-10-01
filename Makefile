@@ -1,6 +1,6 @@
 PROJECT = diversity
 
-DEPS = mustache.erl jiffy lager
+DEPS = imperial jiffy lager
 dep_jiffy = git https://github.com/davisp/jiffy master
 dep_imperial = git https://github.com/Textalk/imperial master
 dep_lager = git https://github.com/basho/lager master

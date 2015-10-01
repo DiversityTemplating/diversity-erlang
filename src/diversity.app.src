@@ -9,7 +9,7 @@
         stdlib,
         inets,
         ssl,
-        mustache,
+        imperial,
         jiffy
     ]},
     {mod, {diversity_app,[]}}
