@@ -56,7 +56,7 @@ render(#{<<"component">> := Name, <<"settings">> := Settings0} = Parameters, Lan
                                          <<"angularBootstrap">> => AngularBootstrap},
 
     %% Do the actual rendering
-    mustache:render(get_template_fun(Name, Version, Diversity, DiversityURL), MustacheContext1).
+    imperial:render(get_template_fun(Name, Version, Diversity, DiversityURL), MustacheContext1).
 
 %% @doc Accumulate all the data from the components into their specific parts (like all scripts by
 %% themselves and css by themselves etc).
@@ -250,7 +250,7 @@ render_fun(Components, Language, Context, DiversityURL) ->
                                                                   Context, DiversityURL),
 
                                  %% Render the sub-component
-                                 ComponentHTML = mustache:render(Template, MustacheContext),
+                                 ComponentHTML = imperial:render(Template, MustacheContext),
                                  Component0#{<<"componentHTML">> => ComponentHTML};
                              _ ->
                                  Component0
@@ -329,7 +329,7 @@ get_template_fun(Component, Version, Diversity, DiversityURL) ->
               case maps:find(<<"template">>, Diversity) of
                   {ok, TemplatePath} ->
                       case diversity_api:get_file(Component, Version, TemplatePath, DiversityURL) of
-                          {ok, Template} -> mustache:compile(Template);
+                          {ok, Template} -> imperial:compile(Template);
                           undefined      -> undefined
                       end;
                   error ->
