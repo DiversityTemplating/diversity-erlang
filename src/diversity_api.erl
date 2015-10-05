@@ -45,7 +45,7 @@ get_versions(Component, DiversityURL) ->
                 get_tags(Component, DiversityURL)
                )
       end,
-      application:get_env(diversity, resource_cache_time, 5000)
+      5000
      ).
 
 %%%%%%%%%%%%%%%%%%%%
