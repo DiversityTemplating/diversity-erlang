@@ -68,7 +68,7 @@ handle_cast({put, Key, Value, Timeout}, State) ->
     ets:insert(?CACHE, [NewEntry]),
     {noreply, State};
 handle_cast({clear, Key}, State) ->
-    ets:delete(Key),
+    ets:delete(?CACHE, Key),
     {noreply, State}.
 
 handle_info(_Info, State) ->
