@@ -20,8 +20,6 @@
           timer :: reference()
          }).
 
--record(state, {}).
-
 %% @doc Get a value from the cache if it exists, otherwise compute it
 %% and send the value to the cache.
 get(_Key, Fun, 0) ->
@@ -44,7 +42,7 @@ start_link() ->
 
 init([]) ->
     ?CACHE = ets:new(?CACHE, [named_table, {read_concurrency, true}, {keypos, #entry.key}]),
-    {ok, #state{}}.
+    {ok, no_state}.
 
 handle_call(_Request, _From, State) ->
     {reply, ok, State}.
@@ -63,15 +61,16 @@ handle_cast({put, Key, Value, Timeout}, State) ->
         key   = Key,
         value = Value,
         ts    = os:timestamp(),
-        timer = erlang:start_timer(Timeout, self(), {clear, Key})
+        timer = erlang:send_after(Timeout, self(), {clear, Key})
     },
     ets:insert(?CACHE, [NewEntry]),
-    {noreply, State};
-handle_cast({clear, Key}, State) ->
-    ets:delete(?CACHE, Key),
     {noreply, State}.
 
-handle_info(_Info, State) ->
+handle_info({clear, Key}, State) ->
+    ets:delete(?CACHE, Key),
+    {noreply, State};
+handle_info(Info, State) ->
+    lager:warning("Unhandled message: ~p~n", [Info]),
     {noreply, State}.
 
 terminate(_Reason, _State) ->
